@@ -37,3 +37,17 @@ class SurveyResponse(Base):
     activities = Column(Text)
 
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class CalculatedScores(Base):
+    __tablename__ = "calculated_scores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    academic_engagement_score = Column(String)
+    academic_wellbeing_score = Column(String)
+    mental_health_score = Column(String)
+    growth_mindset_score = Column(String)
+    gender_norm_score = Column(String)
+    social_attitude_score = Column(String)
+    school_environment_score = Column(String)
+    

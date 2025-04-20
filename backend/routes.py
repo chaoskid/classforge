@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
 from database.db import SessionLocal
 from database.models import SurveyResponse
+import pandas as pd
+from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb
 
 survey_routes = Blueprint('survey_routes', __name__)
 
@@ -37,6 +39,14 @@ def submit_survey():
         )
         db.add(response)
         db.commit()
+        #to calculate the scores
+        survey_responsedf = pd.DataFrame(data, index=[0])
+        normalized = normalizeResponse(survey_responsedf)
+        features = calculateFeatures(normalized)
+
+        # Save the calculated features to the database
+        saveFeaturesToDb(db, features) #written in utils.py but did not check if working or not
+
         return jsonify({"message": "Survey response saved successfully"}), 201
     except Exception as e:
         db.rollback()
