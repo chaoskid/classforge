@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey
 from sqlalchemy.sql import func
 from .db import Base
 
@@ -10,7 +10,7 @@ class SurveyResponse(Base):
 
     # School experience questions
     comfortability_ans = Column(Integer)
-    isolated_ans = Column(Integer)
+    isolated_school_ans = Column(Integer)
     criticise_school_ans = Column(Integer)
     opinion_school_ans = Column(Integer)
     bullying_ans = Column(Integer)
@@ -49,7 +49,7 @@ class SurveyResponse(Base):
 class CalculatedScores(Base):
     __tablename__ = "calculated_scores"
 
-    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, primary_key=True)
     academic_engagement_score = Column(String)
     academic_wellbeing_score = Column(String)
     mental_health_score = Column(String)
@@ -72,7 +72,7 @@ class Teachers(Base):
     first_name = Column(String)
     last_name = Column(String)
     email = Column(String)
-    manage_unit = Column(String)
+    manage_unit = Column(Integer, ForeignKey("unit.unit_id"))
 
 class Students(Base):
     __tablename__ = "students"
@@ -88,15 +88,15 @@ class Students(Base):
 class Relationships(Base):
     __tablename__ = "relationships"
 
-    source = Column(Integer, primary_key = True)
-    target = Column(Integer)
-    link_type = Column(String)
+    source = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
+    target = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
+    link_type = Column(String, primary_key=True)
 
 class Allocations(Base):
     __tablename__ = "allocations"
 
-    unit_id = Column(Integer, primary_key = True)
-    student_id = Column(Integer, primary_key = True)
+    unit_id = Column(Integer, ForeignKey("unit.unit_id"), primary_key=True)
+    student_id = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
     class_id = Column(Integer)
 
 class Unit(Base):
@@ -108,8 +108,8 @@ class Unit(Base):
 class Affiliations(Base):
     __tablename__ = "affiliations"
 
-    student_id = Column(Integer, primary_key = True)
-    club_id = Column(Integer, primary_key = True)
+    student_id = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
+    club_id = Column(Integer, ForeignKey("clubs.club_id"), primary_key=True)
 
 class Clubs(Base):
     __tablename__ = "clubs"

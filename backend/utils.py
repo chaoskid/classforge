@@ -1,6 +1,7 @@
 from flask import jsonify
 import pandas as pd
 from database.models import CalculatedScores
+from sqlalchemy.inspection import inspect
 import json
 
 def normalizeScale(x, max_value):
@@ -8,6 +9,9 @@ def normalizeScale(x, max_value):
         return (x - 1) / (max_value - 1)
     except (TypeError, ValueError):
         return None
+
+def responseToDict(obj):
+    return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
 
 def normalizeResponse(df):
     columns_to_normalize7 = ['comfortability_ans', 'isolated_school_ans',
@@ -43,7 +47,7 @@ def calculateFeatures(df):
                                  (1-df['depressed_ans'])+(1-df['effort_ans']) +
                                  (1-df['worthless_ans']))/7
 
-    df['social_attitude_﻿score'] = ((1 - df['soft_sport_boys_ans']) +(1 - df['nerds_ans']) +
+    df['social_attitude_score'] = ((1 - df['soft_sport_boys_ans']) +(1 - df['nerds_ans']) +
                                     (df['gender_diff_ans']) +(1 - df['men_better_stem_ans']) +
                                     (df['mental_health_score']))/5
     
@@ -58,27 +62,26 @@ def calculateFeatures(df):
                                     (df['future_ans']) + (df['bullying_ans']))/6
     
 
-    return df[["academic_engagement_score", "academic_wellbeing_score", 
-               "mental_health_score","social_attitude_﻿score","gender_norm_score",
-               "growth_mindset_score"]]
+    return df[["student_id","academic_engagement_score", "academic_wellbeing_score", 
+               "mental_health_score","social_attitude_score","gender_norm_score",
+               "growth_mindset_score","school_environment_score"]]
 
 def saveFeaturesToDb(db,features):
-    try:
-        features = json.loads(features.iloc[0].to_json())
-        response = CalculatedScores(
-            id=features['participant_id'],
-            academic_engagement_score=features['academic_engagement_score'],
-            academic_wellbeing_score=features['academic_wellbeing_score'],
-            mental_health_score=features['mental_health_score'],
-            growth_mindset_score=features['growth_mindset_score'],
-            gender_norm_score=features['gender_norm_score'],
-            social_attitude_score=features['social_attitude_score'],
-            school_environment_score=features['school_environment_score']
-        )
-        db.add(response)
-        db.commit()
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        
+    
+    features = json.loads(features.iloc[0].to_json())
+    response = CalculatedScores(
+        student_id=features['student_id'],
+        academic_engagement_score=features['academic_engagement_score'],
+        academic_wellbeing_score=features['academic_wellbeing_score'],
+        mental_health_score=features['mental_health_score'],
+        growth_mindset_score=features['growth_mindset_score'],
+        gender_norm_score=features['gender_norm_score'],
+        social_attitude_score=features['social_attitude_score'],
+        school_environment_score=features['school_environment_score']
+    )
+    db.add(response)
+    db.commit()
 
 # Example usage to run manually
 # df1 = pd.read_csv('synthetic_records_2.csv')
