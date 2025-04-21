@@ -7,12 +7,14 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Step1_AboutYou from '../components/SurveySteps/Step1_AboutYou';
 import Step2_AboutSchool from '../components/SurveySteps/Step2_AboutSchool';
-import Step3_YourOpinions from '../components/SurveySteps/Step3_YourOpinions';
-import Step4_YourNetwork from '../components/SurveySteps/Step4_YourNetwork';
-import Step5_ReviewSubmit from '../components/SurveySteps/Step5_ReviewSubmit';
+import Step3_YourWellbeing from '../components/SurveySteps/Step3_YourWellbeing';
+import Step4_YourGrowth from '../components/SurveySteps/Step4_YourGrowth';
+import Step5_GenderNorms from '../components/SurveySteps/Step5_GenderNorms';
+import Step6_YourNetwork from '../components/SurveySteps/Step6_YourNetwork';
+import Step7_ReviewSubmit from '../components/SurveySteps/Step7_ReviewSubmit';
 import axios from 'axios';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 7;
 
 const SnaSurvey = () => {
   const [step, setStep] = useState(1);
@@ -49,11 +51,15 @@ const SnaSurvey = () => {
       case 2:
         return <Step2_AboutSchool data={formData} updateFormData={updateFormData} onNext={handleNext} onBack={handleBack} />;
       case 3:
-        return <Step3_YourOpinions data={formData} updateFormData={updateFormData} onNext={handleNext} onBack={handleBack} />;
+        return <Step3_YourWellbeing data={formData} updateFormData={updateFormData} onNext={handleNext} onBack={handleBack} />;
       case 4:
-        return <Step4_YourNetwork data={formData} updateFormData={updateFormData} onNext={handleNext} onBack={handleBack} />;
+        return <Step4_YourGrowth data={formData} updateFormData={updateFormData} onNext={handleNext} onBack={handleBack} />;
       case 5:
-        return <Step5_ReviewSubmit data={formData} onSubmit={handleSubmit} onBack={handleBack} />;
+        return <Step5_GenderNorms data={formData} updateFormData={updateFormData} onNext={handleNext} onBack={handleBack} />;
+      case 6:
+        return <Step6_YourNetwork data={formData} updateFormData={updateFormData} onNext={handleNext} onBack={handleBack} />;
+      case 7:
+        return <Step7_ReviewSubmit data={formData} onSubmit={handleSubmit} onBack={handleBack} />;
       default:
         return <Heading size="md">Unknown step</Heading>;
     }
