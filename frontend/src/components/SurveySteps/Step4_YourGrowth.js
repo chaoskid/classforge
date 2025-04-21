@@ -1,4 +1,4 @@
-// src/components/SurveySteps/Step2_AboutSchool.js
+// src/components/SurveySteps/Step1_YourGrowth.js
 import React from 'react';
 import {
   Box, Button, FormControl, FormLabel,
@@ -7,34 +7,29 @@ import {
 } from '@chakra-ui/react';
 
 const questions = [
-  'I feel comfortable at school.',
-  'At school, I feel isolated because of my opinions.',
-  'When someone criticises the school, it feels like a personal insult.',
-  'At school, my opinion doesn\'t count for much.',
-  'At this school, bullying is not tolerated at all.',
-  'I believe that what I learn at school will help me in my future.',
-  'I feel worried that COVID-19 has had a big impact on my education.'
+    'I have a certain amount of intelligence, and I can\'t really do much to change it.',
+    'I can learn new things, but I can\'t really change my basic intelligence.',
 ];
-
+  
 const labels = {
-  1: 'Strongly disagree',
-  2: 'Disagree',
-  3: 'Somewhat disagree',
-  4: 'Neutral',
-  5: 'Somewhat agree',
-  6: 'Agree',
-  7: 'Strongly agree'
+    1: 'Strongly disagree',
+    2: 'Disagree',
+    3: 'Somewhat disagree',
+    4: 'Neutral',
+    5: 'Somewhat agree',
+    6: 'Agree',
+    7: 'Strongly agree'
 };
 
-const Step2_AboutSchool = ({ data, updateFormData, onNext, onBack }) => {
+const Step2_YourGrowth = ({ data, updateFormData, onNext, onBack }) => {
   return (
     <VStack spacing={6} align="stretch">
       <Text fontSize="md" color="gray.600" mb={2}>
-        Please answer the following questions about your experience at school:
+        Please answer the following questions:
       </Text>
 
       {questions.map((question, index) => {
-        const key = `school_q${index + 1}`;
+        const key = `intelligence_q${index + 1}`;
         const value = data[key] || 4;
         return (
           <FormControl key={key}>
@@ -62,4 +57,4 @@ const Step2_AboutSchool = ({ data, updateFormData, onNext, onBack }) => {
   );
 };
 
-export default Step2_AboutSchool;
+export default Step2_YourGrowth;

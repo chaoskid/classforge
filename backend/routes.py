@@ -3,49 +3,55 @@ from database.db import SessionLocal
 from database.models import SurveyResponse
 import pandas as pd
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb
+import random
 
 survey_routes = Blueprint('survey_routes', __name__)
 
 @survey_routes.route('/api/survey', methods=['POST'])
 def submit_survey():
     data = request.get_json()
-    print(data.get('home_language'))
     db = SessionLocal()
     try:
         response = SurveyResponse(
-            home_language=data.get('home_language'),
-            happiness=data.get('happiness'),
-            school_q1=data.get('school_q1'),
-            school_q2=data.get('school_q2'),
-            school_q3=data.get('school_q3'),
-            school_q4=data.get('school_q4'),
-            school_q5=data.get('school_q5'),
-            school_q6=data.get('school_q6'),
-            opinion_q1=data.get('opinion_q1'),
-            opinion_q2=data.get('opinion_q2'),
-            opinion_q3=data.get('opinion_q3'),
-            opinion_q4=data.get('opinion_q4'),
-            opinion_q5=data.get('opinion_q5'),
-            opinion_q6=data.get('opinion_q6'),
-            opinion_q7=data.get('opinion_q7'),
-            opinion_q8=data.get('opinion_q8'),
-            friends=data.get('friends'),
-            advice=data.get('advice'),
-            disrespect=data.get('disrespect'),
-            popular=data.get('popular'),
-            more_time=data.get('more_time'),
-            feedback=data.get('feedback'),
-            activities=data.get('activities')
+            student_id = random.randint(100, 999),
+            home_lang_ans=data.get('home_lang_ans'),
+            comfortability_ans=data.get('school_q1'),
+            isolated_ans=data.get('school_q2'),
+            criticise_school_ans=data.get('school_q3'),
+            opinion_school_ans=data.get('school_q4'),
+            bullying_ans=data.get('school_q5'),
+            future_ans=data.get('school_q6'),
+            covid_ans=data.get('school_q7'),
+            how_happy_ans=data.get('how_happy_ans'),
+            nervous_ans=data.get('wellbeing_q1'),
+            hopeless_ans=data.get('wellbeing_q2'),
+            restless_ans=data.get('wellbeing_q3'),
+            depressed_ans=data.get('wellbeing_q4'),
+            effort_ans=data.get('wellbeing_q5'),
+            worthless_ans=data.get('wellbeing_q6'),
+            intelligence1_ans=data.get('intelligence_q1'),
+            intelligence2_ans=data.get('intelligence_q1'),
+            man_chores_opinion=data.get('gender_q1'),
+            man_violence_opinion=data.get('gender_q2'),
+            man_sexual_opinion=data.get('gender_q3'),
+            man_fears_opinion=data.get('gender_q4'),
+            gay_man_opinion=data.get('gender_q5'),
+            soft_sport_boys_ans=data.get('gender_q6'),
+            gender_diff_ans=data.get('gender_q7'),
+            nerds_ans=data.get('gender_q8'),
+            men_better_stem_ans=data.get('gender_q9')
         )
         db.add(response)
         db.commit()
         #to calculate the scores
+        print("data, its type", type(data))
         survey_responsedf = pd.DataFrame(data, index=[0])
-        normalized = normalizeResponse(survey_responsedf)
-        features = calculateFeatures(normalized)
+        print(survey_responsedf)
+        #normalized = normalizeResponse(survey_responsedf)
+        #features = calculateFeatures(normalized)
 
         # Save the calculated features to the database
-        saveFeaturesToDb(db, features) #written in utils.py but did not check if working or not
+        # saveFeaturesToDb(db, features) #written in utils.py but did not check if working or not
 
         return jsonify({"message": "Survey response saved successfully"}), 201
     except Exception as e:
