@@ -1,6 +1,6 @@
 from flask import jsonify
 import pandas as pd
-from database.models import CalculatedScores
+from database.models import CalculatedScores,SurveyResponse, Relationships
 from sqlalchemy.inspection import inspect
 import json
 
@@ -66,8 +66,43 @@ def calculateFeatures(df):
                "mental_health_score","social_attitude_score","gender_norm_score",
                "growth_mindset_score","school_environment_score"]]
 
-def saveFeaturesToDb(db,features):
+def saveSurveyAnswers(data,db):
+    response = SurveyResponse(
+               student_id = data.get('student_id'),
+               home_lang_ans=data.get('home_lang_ans'),
+               comfortability_ans=data.get('school_q1'),
+               isolated_school_ans=data.get('school_q2'),
+               criticise_school_ans=data.get('school_q3'),
+               opinion_school_ans=data.get('school_q4'),
+               bullying_ans=data.get('school_q5'),
+               future_ans=data.get('school_q6'),
+               covid_ans=data.get('school_q7'),
+               how_happy_ans=data.get('how_happy_ans'),
+               nervous_ans=data.get('wellbeing_q1'),
+               hopeless_ans=data.get('wellbeing_q2'),
+               restless_ans=data.get('wellbeing_q3'),
+               depressed_ans=data.get('wellbeing_q4'),
+               effort_ans=data.get('wellbeing_q5'),
+               worthless_ans=data.get('wellbeing_q6'),
+               intelligence1_ans=data.get('intelligence_q1'),
+               intelligence2_ans=data.get('intelligence_q1'),
+               man_chores_opinion=data.get('gender_q1'),
+               man_violence_opinion=data.get('gender_q2'),
+               man_sexual_opinion=data.get('gender_q3'),
+               man_fears_opinion=data.get('gender_q4'),
+               gay_man_opinion=data.get('gender_q5'),
+               soft_sport_boys_ans=data.get('gender_q6'),
+               gender_diff_ans=data.get('gender_q7'),
+               nerds_ans=data.get('gender_q8'),
+               men_better_stem_ans=data.get('gender_q9')
+           )
+    db.merge(response)
+    db.commit()
+    return response
         
+
+
+def saveFeaturesToDb(db,features):
     
     features = json.loads(features.iloc[0].to_json())
     response = CalculatedScores(
@@ -80,8 +115,47 @@ def saveFeaturesToDb(db,features):
         social_attitude_score=features['social_attitude_score'],
         school_environment_score=features['school_environment_score']
     )
-    db.add(response)
+    db.merge(response)
     db.commit()
+  # or however you get your Session
+
+def saveRelationshipsToDb(response,session):
+    source_id = response.get('student_id')
+    if source_id is None:
+        raise ValueError("Payload must include 'student_id'")
+    print("Full payload:", response)
+
+    allowed_keys = {'friends', 'popular', 'disrespect', 'more_time', 'advice', 'feedback'}
+    orm_objs = []
+
+    for link_type in allowed_keys:
+        entries = response.get(link_type, [])
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            target_id = entry.get('value')
+            if target_id is None:
+                continue
+            orm_objs.append(
+                Relationships(
+                    source=source_id,
+                    target=target_id,
+                    link_type=link_type
+                )
+            )
+
+    print("Identified Relationships:")
+    for obj in orm_objs:
+        print(f"  {obj.source} -> {obj.target} [{obj.link_type}]")
+
+    if not orm_objs:
+        print("No relationships to insert.")
+        return
+
+    for obj in orm_objs:
+        session.merge(obj)
+    session.commit()
+
 
 # Example usage to run manually
 # df1 = pd.read_csv('synthetic_records_2.csv')

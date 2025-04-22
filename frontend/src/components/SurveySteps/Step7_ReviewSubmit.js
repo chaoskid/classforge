@@ -5,6 +5,7 @@ import {
 } from '@chakra-ui/react';
 
 const questionMap = {
+  student_id: "Student ID:",
   home_lang_ans: 'Which language(s) do you speak at home?',
   school_q1: 'I feel comfortable at school.',
   school_q2: 'At school, I feel isolated because of my opinions.',
@@ -81,9 +82,9 @@ const Step7_ReviewSubmit = ({ data, onSubmit, onBack }) => {
         <Box maxH="300px" overflowY="auto" p={4} border="1px solid #E2E8F0" borderRadius="md" bg="gray.50">
           {Object.entries(data).map(([key, value]) => (
             <Box key={key} mb={3}>
-              <Text fontWeight="medium">Q: {questionMap[key] || key}</Text>
+              <Text fontWeight="600">{questionMap[key] || key}</Text>
               <Text color="gray.700">
-                A: {
+                {
                   Array.isArray(value)
                     ? value.map(item => item.label).join(', ')
                     : (

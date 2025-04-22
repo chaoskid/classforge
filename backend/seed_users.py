@@ -7,7 +7,7 @@ def create_users():
     db = SessionLocal()
     try:
         users = [
-            Users(user_email='student@example.com', password=generate_password_hash('student123'), user_type='student'),
+            Users(user_email='Jason.Bailey@school.edu', password=generate_password_hash('jason'), user_type='student'),
             Users(user_email='teacher@example.com', password=generate_password_hash('teacher123'), user_type='teacher')
         ]
         db.add_all(users)

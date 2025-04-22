@@ -1,7 +1,15 @@
 // src/pages/SnaSurvey.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Box, Container, Heading, useToast, Progress, Text
+  Box,
+  Container,
+  Heading,
+  useToast,
+  Progress,
+  Text,
+  Spinner,
+  Center
 } from '@chakra-ui/react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -12,26 +20,51 @@ import Step4_YourGrowth from '../components/SurveySteps/Step4_YourGrowth';
 import Step5_GenderNorms from '../components/SurveySteps/Step5_GenderNorms';
 import Step6_YourNetwork from '../components/SurveySteps/Step6_YourNetwork';
 import Step7_ReviewSubmit from '../components/SurveySteps/Step7_ReviewSubmit';
-import axios from 'axios';
+import axios from '../pages/axiosConfig';
 
 const TOTAL_STEPS = 7;
 
 const SnaSurvey = () => {
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({});
+  const navigate = useNavigate();
   const toast = useToast();
 
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // On mount: verify session and retrieve user_id
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const res = await axios.get('/api/current_user', { withCredentials: true });
+        const uid = res.data.user_id;
+        if (!uid) {
+          // Not logged in → redirect to login
+          navigate('/login', { replace: true });
+        } else {
+          setFormData({ student_id: uid });
+        }
+      } catch (err) {
+        console.error('Session check failed:', err);
+        navigate('/login', { replace: true });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSession();
+  }, [navigate]);
+
   const updateFormData = (key, value) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+    setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleNext = () => setStep((prev) => prev + 1);
-  const handleBack = () => setStep((prev) => prev - 1);
+  const handleNext = () => setStep(prev => prev + 1);
+  const handleBack = () => setStep(prev => prev - 1);
 
   const handleSubmit = async () => {
     try {
-      console.log('Submitting form data:', formData); // optional debug log
-      await axios.post('http://localhost:5000/api/survey', formData);
+      console.log('Submitting form data:', formData);
+      await axios.post('/api/survey', formData, { withCredentials: true });
       toast({ title: 'Survey submitted!', status: 'success', duration: 3000 });
     } catch (error) {
       console.error('Submission error:', error);
@@ -64,6 +97,14 @@ const SnaSurvey = () => {
         return <Heading size="md">Unknown step</Heading>;
     }
   };
+
+  if (loading) {
+    return (
+      <Center h="100vh">
+        <Spinner size="xl" label="Verifying session…" />
+      </Center>
+    );
+  }
 
   return (
     <>
