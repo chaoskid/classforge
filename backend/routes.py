@@ -1,15 +1,18 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
-from database.models import SurveyResponse, Students, Clubs
+from database.models import SurveyResponse, Students, Clubs, Users
 import pandas as pd
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict
 import random
+from werkzeug.security import check_password_hash
 
 survey_routes = Blueprint('survey_routes', __name__)
 
 @survey_routes.route('/api/survey', methods=['POST'])
 def submit_survey():
     data = request.get_json()
+    print("----------------------- SUBMIT API RESPONSE:")
+    print(data)
     db = SessionLocal()
     try:
         response = SurveyResponse(
@@ -107,3 +110,40 @@ def receive_network_responses():
     print("======================================\n")
 
     return jsonify({"message": "Data received and printed to terminal"}), 200
+
+@survey_routes.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    db = SessionLocal()
+    try:
+        user = db.query(Users).filter_by(user_email=email).first()
+        if user and check_password_hash(user.password, password):
+            session['user_id'] = user.user_email
+            session['user_type'] = user.user_type
+            print("\n\n -------------------------- LOGGED IN WITH ID: {} --------------------------".format(session['user_id']))
+            print("\n\n -------------------------- SESSION AFTER LOG IN: {} --------------------------".format(session))
+            return jsonify({'message': 'Login successful', 'user_type': user.user_type}), 200
+        return jsonify({'message': 'Invalid email or password'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+@survey_routes.route('/api/logout', methods=['POST'])
+def logout():
+    print("\n\n -------------------------- LOGGING OUT ID: {} --------------------------".format(session['user_id']))
+    session.clear()
+    print("\n\n -------------------------- SESSION AFTER LOG IN: {} --------------------------".format(session))
+    return jsonify({'message': 'Logged out'}), 200
+
+@survey_routes.route('/api/current_user', methods=['GET'])
+def get_current_user():
+    
+    print("\n\n -------------------------- SESSION  STATE NOW : {} --------------------------".format(session))
+    if 'user_id' in session:
+        return jsonify({'user_id': session['user_id'], 'user_type': session['user_type']}), 200
+    return jsonify({'message': 'Not logged in'}), 401
+
