@@ -4,15 +4,13 @@ import {
   Box, Button, FormControl, FormLabel, VStack, Text
 } from '@chakra-ui/react';
 import Select from 'react-select';
-import axios from 'axios';
-
-const currentUserId = 32437; // TEMP: hardcoded for testing
+import axios from '../../pages/axiosConfig';
 
 const networkQuestions = [
   { key: 'friends', label: 'Who are your closest friends?', link_type: 'friends' },
   { key: 'advice', label: 'Which other students do you go to for advice about schoolwork?', link_type: 'advice' },
   { key: 'disrespect', label: 'Which students are disrespectful towards you?', link_type: 'disrespect' },
-  { key: 'popular', label: 'Who are the most popular and influential students?', link_type: 'influence' },
+  { key: 'popular', label: 'Who are the most popular and influential students?', link_type: 'popular' },
   { key: 'more_time', label: 'Who would you like to spend MORE time with?', link_type: 'more_time' },
   { key: 'feedback', label: 'Which students provide you with meaningful feedback about your learning?', link_type: 'feedback' },
   { key: 'activities', label: 'What school activities are you a part of?' }
@@ -23,7 +21,7 @@ const Step6_YourNetwork = ({ data, updateFormData, onNext, onBack }) => {
   const [clubOptions, setClubOptions] = useState([]);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/students').then(res => {
+    axios.get('/api/students').then(res => {
       console.log("Students fetched:", res.data);
       const opts = res.data.map(stu => ({
         value: stu.student_id,
@@ -32,7 +30,7 @@ const Step6_YourNetwork = ({ data, updateFormData, onNext, onBack }) => {
       setStudentOptions(opts);
     });
 
-    axios.get('http://localhost:5000/api/clubs').then(res => {
+    axios.get('/api/clubs').then(res => {
       const opts = res.data.map(club => ({
         value: club.club_id,
         label: club.club_name

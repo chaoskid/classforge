@@ -5,7 +5,7 @@ from .db import Base
 class SurveyResponse(Base):
     __tablename__ = "survey_responses"
 
-    student_id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("students.student_id"),primary_key=True)
     home_lang_ans = Column(String)
 
     # School experience questions
@@ -43,13 +43,11 @@ class SurveyResponse(Base):
     nerds_ans = Column(Integer)
     men_better_stem_ans = Column(Integer)
 
-    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
-
 
 class CalculatedScores(Base):
     __tablename__ = "calculated_scores"
 
-    student_id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("students.student_id"),primary_key=True)
     academic_engagement_score = Column(String)
     academic_wellbeing_score = Column(String)
     mental_health_score = Column(String)
@@ -88,7 +86,7 @@ class Students(Base):
 class Relationships(Base):
     __tablename__ = "relationships"
 
-    source = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
+    source = Column(Integer, primary_key=True)
     target = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
     link_type = Column(String, primary_key=True)
 
