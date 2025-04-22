@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from database.db import SessionLocal
-from database.models import SurveyResponse
+from database.models import SurveyResponse, Students, Clubs
 import pandas as pd
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict
 import random
@@ -60,3 +60,50 @@ def submit_survey():
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
+
+@survey_routes.route('/api/students', methods=['GET'])
+def get_students():
+    db = SessionLocal()
+    try:
+        students = db.query(Students).all()
+        result = [{
+            'student_id': s.student_id,
+            'first_name': s.first_name,
+            'last_name': s.last_name
+        } for s in students]
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@survey_routes.route('/api/clubs', methods=['GET'])
+def get_clubs():
+    db = SessionLocal()
+    try:
+        clubs = db.query(Clubs).all()
+        result = [{
+            'club_id': c.club_id,
+            'club_name': c.club_name
+        } for c in clubs]
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@survey_routes.route('/api/network-responses', methods=['POST'])
+def receive_network_responses():
+    data = request.get_json()
+    print("\n===== Network Submission Received =====")
+    print("Social Relationships:")
+    for item in data.get('responses', []):
+        print(f"From: {item['source']}, To: {item['target']}, Type: {item['link_type']}")
+    
+    print("\nClub Affiliations:")
+    print(f"Student: {data.get('clubs', {}).get('student_id')}, Clubs: {data.get('clubs', {}).get('club_ids')}")
+
+    print("======================================\n")
+
+    return jsonify({"message": "Data received and printed to terminal"}), 200

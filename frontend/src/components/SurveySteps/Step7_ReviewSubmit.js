@@ -1,4 +1,4 @@
-// src/components/SurveySteps/Step5_ReviewSubmit.js
+// src/components/SurveySteps/Step7_ReviewSubmit.js
 import React from 'react';
 import {
   Box, Button, VStack, Text, Divider
@@ -73,7 +73,7 @@ const happinessLabels = {
 };
 
 
-const Step5_ReviewSubmit = ({ data, onSubmit, onBack }) => {
+const Step7_ReviewSubmit = ({ data, onSubmit, onBack }) => {
   return (
     <VStack spacing={6} align="stretch">
       <Box>
@@ -84,10 +84,14 @@ const Step5_ReviewSubmit = ({ data, onSubmit, onBack }) => {
               <Text fontWeight="medium">Q: {questionMap[key] || key}</Text>
               <Text color="gray.700">
                 A: {
-                  key === 'how_happy_ans' ? happinessLabels[value] :
-                  key.startsWith('wellbeing_q') ? wellbeingLabels[value] :
-                  typeof value === 'number' && scaleLabels[value] ? scaleLabels[value] :
-                  String(value)
+                  Array.isArray(value)
+                    ? value.map(item => item.label).join(', ')
+                    : (
+                        key === 'how_happy_ans' ? happinessLabels[value] :
+                        key.startsWith('wellbeing_q') ? wellbeingLabels[value] :
+                        typeof value === 'number' && scaleLabels[value] ? scaleLabels[value] :
+                        String(value)
+                      )
                 }
               </Text>
               <Divider my={2} />
@@ -104,4 +108,4 @@ const Step5_ReviewSubmit = ({ data, onSubmit, onBack }) => {
   );
 };
 
-export default Step5_ReviewSubmit;
+export default Step7_ReviewSubmit;
