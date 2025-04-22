@@ -6,6 +6,10 @@ from routes import survey_routes
 app = Flask(__name__)
 CORS(app)
 
+app.secret_key = 'classforge-2024-secret-key'  # Required for session cookies
+CORS(app, supports_credentials=True)
+
+
 # Create tables
 Base.metadata.create_all(bind=engine)
 
