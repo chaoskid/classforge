@@ -53,7 +53,7 @@ const StudentDashboard = () => {
       <Box bg="gray.100" minH="100vh" py={10}>
         <Container maxW="7xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
           <Heading size="lg" mb={4}>Student Dashboard</Heading>
-          <Text mb={6}>Welcome to ClassForge! Here you can view or complete your surveys, check classroom allocation, and more.</Text>
+          <Text mb={6}>Hi {studentDetails?.student?.name?.split(" ")[0]}, welcome to ClassForge!</Text>
           <Button colorScheme="teal" onClick={() => navigate('/survey')} mr={4}>
             Go to Survey
           </Button>
@@ -70,12 +70,12 @@ const StudentDashboard = () => {
   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={10}>
     {/* 📋 Survey Responses Box */}
     <Box p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
-      <Heading size="md" mb={4}>📋 Your Survey Responses</Heading>
+      <Heading size="md" mb={4}>Your Survey Responses</Heading>
       <Table size="sm" variant="simple">
         <Tbody>
           {Object.entries(responses).map(([question, answer], idx) => (
             <Tr key={idx}>
-              <Td fontWeight="bold">{question}</Td>
+              <Td fontWeight="600">{question}</Td>
               <Td>{answer}</Td>
             </Tr>
           ))}
@@ -84,13 +84,14 @@ const StudentDashboard = () => {
     </Box>
 
     <Box p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
-      <Heading size="md" mb={4}>👤 Student Info</Heading>
+      <Heading size="md" mb={4}>Student Info</Heading>
       <Text><b>Name:</b> {studentDetails?.student?.name}</Text>
       <Text><b>Email:</b> {studentDetails?.student?.email}</Text>
-      <Text mt={2}><b>Clubs:</b> {studentDetails?.clubs?.join(', ') || 'None'}</Text>
+      <Text><b>Subjects:</b> {studentDetails?.units?.join(', ') || 'None'}</Text>
+      <Text><b>Clubs:</b> {studentDetails?.clubs?.join(', ') || 'None'}</Text>
       {studentDetails?.relationships?.length > 0 && (
         <Box mt={6}>
-          <Heading size="sm" mb={2}>🕸️ Relationship Network</Heading>
+          <Heading size="sm" mb={2}>Relationship Network</Heading>
           <StudentNetworkGraph
             name={studentDetails.student?.name || "You"}
             relationships={studentDetails.relationships}

@@ -96,6 +96,7 @@ class Allocations(Base):
     unit_id = Column(Integer, ForeignKey("unit.unit_id"), primary_key=True)
     student_id = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
     class_id = Column(Integer)
+    reallocation = Column(Integer, default=0)
 
 class Unit(Base):
     __tablename__ = "unit"

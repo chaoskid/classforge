@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
-from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations
+from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit
 import pandas as pd
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers, saveAffiliationsToDb
 from auth import student_login_required, teacher_login_required, either_login_required
@@ -169,6 +169,13 @@ def get_student_info():
         club_names = db.query(Clubs.club_name).filter(Clubs.club_id.in_(club_ids)).all()
         club_names = [c[0] for c in club_names]
 
+        # Units
+        unit_ids = db.query(Allocations.unit_id).filter_by(student_id=student_id).all()
+        unit_ids = [uid[0] for uid in unit_ids]
+        unit_names = db.query(Unit.unit_name).filter(Unit.unit_id.in_(unit_ids)).all()
+        unit_names = [u[0] for u in unit_names]
+        print(unit_names)
+
         # Relationships with name and email
         relationships = db.query(Relationships).filter_by(source=student_id).all()
         detailed_relationships = []
@@ -188,6 +195,7 @@ def get_student_info():
                 "house": student.house
             },
             "clubs": club_names or ["No clubs joined"],
+            "units": unit_names or ["No units enrolled"],
             "relationships": detailed_relationships
         }
 
