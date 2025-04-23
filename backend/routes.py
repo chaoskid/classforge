@@ -11,14 +11,10 @@ survey_routes = Blueprint('survey_routes', __name__)
 @survey_routes.route('/api/survey', methods=['POST'])
 def submit_survey():
     data = request.get_json()
-    print("----------------------- SUBMIT API RESPONSE:")
-    print(data)
     db = SessionLocal()
     try:
         response = saveSurveyAnswers(data, db)
-        print("response: ",response)
         saveRelationshipsToDb(data, db)
-        print("saved relationships to db")
         survey_response_mapped = responseToDict(response)
 
         survey_responsedf = pd.DataFrame(survey_response_mapped, index=[0])
@@ -26,7 +22,7 @@ def submit_survey():
         normalized = normalizeResponse(survey_responsedf)
 
         features = calculateFeatures(normalized)
-        # Save the calculated features to the database
+
         saveFeaturesToDb(db, features) 
         
         return jsonify({"message": "Survey response saved successfully"}), 201
@@ -68,21 +64,6 @@ def get_clubs():
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
-
-@survey_routes.route('/api/network-responses', methods=['POST'])
-def receive_network_responses():
-    data = request.get_json()
-    print("\n===== Network Submission Received =====")
-    print("Social Relationships:")
-    for item in data.get('responses', []):
-        print(f"From: {item['source']}, To: {item['target']}, Type: {item['link_type']}")
-    
-    print("\nClub Affiliations:")
-    print(f"Student: {data.get('clubs', {}).get('student_id')}, Clubs: {data.get('clubs', {}).get('club_ids')}")
-
-    print("======================================\n")
-
-    return jsonify({"message": "Data received and printed to terminal"}), 200
 
 @survey_routes.route('/api/login', methods=['OPTIONS','POST'])
 def login():

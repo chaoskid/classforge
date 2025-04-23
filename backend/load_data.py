@@ -1,7 +1,9 @@
 import pandas as pd
+import numpy as np
 from sqlalchemy.orm import Session
-from database.models import Students, SurveyResponse, Relationships, Clubs, Affiliations
+from database.models import Students, SurveyResponse, Relationships, Clubs, Affiliations, CalculatedScores
 from database.db import engine
+from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb
 
 def load_students(file_path):
     df = pd.read_csv(file_path)
@@ -141,9 +143,38 @@ def load_affiliations(file_path):
     print("Affiliations loaded successfully.")
 
 
+def load_calculate_scores(file_path):
+    df = pd.read_csv(file_path)
+    df.rename(columns={'Participant-ID': 'student_id'}, inplace=True)
+    normalized_df = normalizeResponse(df)
+    features_df = calculateFeatures(normalized_df)
+    features_df = features_df.round(3)
+    features_df = features_df.astype('object')
+    session = Session(bind=engine)
+    for _, data in features_df.iterrows():
+        response = CalculatedScores(
+               student_id = data.get('student_id'),
+               academic_engagement_score=data.get('academic_engagement_score'),
+               academic_wellbeing_score=data.get('academic_wellbeing_score'),
+               mental_health_score=data.get('mental_health_score'),
+               growth_mindset_score=data.get('growth_mindset_score'),
+               gender_norm_score=data.get('gender_norm_score'),
+               social_attitude_score=data.get('social_attitude_score'),
+               school_environment_score=data.get('school_environment_score')
+           )
+        session.add(response)
+
+    session.commit()
+    session.close()
+    print("Calculated Scores Added Successfully.")
+
+
+
+
 if __name__ == "__main__":
     load_students("data/students.csv")  
     load_survey_responses("data/survey_responses.csv")
     load_relationships("data/relationships.csv")
     load_clubs("data/clubs.csv")
     load_affiliations("data/affiliations.csv")
+    load_calculate_scores("data/survey_responses.csv")

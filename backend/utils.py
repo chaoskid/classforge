@@ -85,7 +85,7 @@ def saveSurveyAnswers(data,db):
                effort_ans=data.get('wellbeing_q5'),
                worthless_ans=data.get('wellbeing_q6'),
                intelligence1_ans=data.get('intelligence_q1'),
-               intelligence2_ans=data.get('intelligence_q1'),
+               intelligence2_ans=data.get('intelligence_q2'),
                man_chores_opinion=data.get('gender_q1'),
                man_violence_opinion=data.get('gender_q2'),
                man_sexual_opinion=data.get('gender_q3'),
