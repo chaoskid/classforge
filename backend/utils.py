@@ -1,6 +1,6 @@
 from flask import jsonify
 import pandas as pd
-from database.models import CalculatedScores,SurveyResponse, Relationships
+from database.models import CalculatedScores,SurveyResponse, Relationships, Affiliations
 from sqlalchemy.inspection import inspect
 import json
 
@@ -123,7 +123,6 @@ def saveRelationshipsToDb(response,session):
     source_id = response.get('student_id')
     if source_id is None:
         raise ValueError("Payload must include 'student_id'")
-    print("Full payload:", response)
 
     allowed_keys = {'friends', 'popular', 'disrespect', 'more_time', 'advice', 'feedback'}
     orm_objs = []
@@ -144,10 +143,6 @@ def saveRelationshipsToDb(response,session):
                 )
             )
 
-    print("Identified Relationships:")
-    for obj in orm_objs:
-        print(f"  {obj.source} -> {obj.target} [{obj.link_type}]")
-
     if not orm_objs:
         print("No relationships to insert.")
         return
@@ -156,6 +151,33 @@ def saveRelationshipsToDb(response,session):
         session.merge(obj)
     session.commit()
 
+def saveAffiliationsToDb(db,data):
+    source_id = data.get('student_id')
+    if source_id is None:
+        raise ValueError("Payload must include 'student_id'")
+    allowed_keys = "activities"
+    orm_objs = []
+    entries = data.get(allowed_keys, [])
+    if not isinstance(entries, list):
+        raise ValueError(f"Payload must include '{allowed_keys}' as a list")
+    for entry in entries:
+        target_id = entry.get('value')
+        if target_id is None:
+            continue
+        orm_objs.append(
+            Affiliations(
+                student_id=source_id,
+                club_id=target_id
+            )
+        )
+    
+    if not orm_objs:
+        print("No affiliations to insert.")
+        return
+    
+    for obj in orm_objs:
+        db.merge(obj)
+    db.commit()
 
 # Example usage to run manually
 # df1 = pd.read_csv('synthetic_records_2.csv')

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
 from database.models import Students, Clubs, Users, Teachers
 import pandas as pd
-from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers
+from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers, saveAffiliationsToDb
 import random
 from werkzeug.security import check_password_hash
 
@@ -13,16 +13,29 @@ def submit_survey():
     data = request.get_json()
     db = SessionLocal()
     try:
+        # saving survey response to database
         response = saveSurveyAnswers(data, db)
+
+        #saving relationships to database
         saveRelationshipsToDb(data, db)
+
+        # saving affiliations to database
+        saveAffiliationsToDb(db,data)
+
+        # calculating the features
+        # converting response to dictionary
         survey_response_mapped = responseToDict(response)
 
+        # converting the dictionary to a DataFrame
         survey_responsedf = pd.DataFrame(survey_response_mapped, index=[0])
         
+        # normalizing the response
         normalized = normalizeResponse(survey_responsedf)
 
+        # calculating the features
         features = calculateFeatures(normalized)
 
+        # saving features to database in calculated_scores table
         saveFeaturesToDb(db, features) 
         
         return jsonify({"message": "Survey response saved successfully"}), 201
