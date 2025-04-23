@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, Numeric
 from sqlalchemy.sql import func
 from .db import Base
 
@@ -47,14 +47,14 @@ class SurveyResponse(Base):
 class CalculatedScores(Base):
     __tablename__ = "calculated_scores"
 
-    student_id = Column(Integer, ForeignKey("students.student_id"),primary_key=True)
-    academic_engagement_score = Column(String)
-    academic_wellbeing_score = Column(String)
-    mental_health_score = Column(String)
-    growth_mindset_score = Column(String)
-    gender_norm_score = Column(String)
-    social_attitude_score = Column(String)
-    school_environment_score = Column(String)
+    student_id = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
+    academic_engagement_score  = Column(Numeric(5, 3))
+    academic_wellbeing_score   = Column(Numeric(5, 3))
+    mental_health_score        = Column(Numeric(5, 3))
+    growth_mindset_score       = Column(Numeric(5, 3))
+    gender_norm_score          = Column(Numeric(5, 3))
+    social_attitude_score      = Column(Numeric(5, 3))
+    school_environment_score   = Column(Numeric(5, 3))
 
 class Users(Base):
     __tablename__ = "users"
