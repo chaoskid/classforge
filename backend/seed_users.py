@@ -1,18 +1,25 @@
 # seed_users.py
 from database.db import SessionLocal
-from database.models import Users
+from database.models import Users, Students
 from werkzeug.security import generate_password_hash
 
-def create_users():
+def create_student_users():
     db = SessionLocal()
     try:
-        users = [
-            Users(user_email='Jason.Bailey@school.edu', password=generate_password_hash('jason'), user_type='student'),
-            Users(user_email='teacher@example.com', password=generate_password_hash('teacher123'), user_type='teacher')
-        ]
+        students = db.query(Students).all()
+        users = []
+        for student in students:
+            user = Users(
+                user_email=student.email,
+                password=generate_password_hash((student.first_name+student.last_name).lower()),
+                user_type='student'
+            )
+            users.append(user)
+    
         db.add_all(users)
         db.commit()
-        print("Sample users created successfully.")
+        print("All students loaded to users table successfully.")
+    
     except Exception as e:
         db.rollback()
         print("Error:", e)
@@ -20,4 +27,4 @@ def create_users():
         db.close()
 
 if __name__ == '__main__':
-    create_users()
+    create_student_users()
