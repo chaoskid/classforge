@@ -114,7 +114,7 @@ const SnaSurvey = () => {
     <>
       <Navbar />
       <Box bg="gray.100" minH="100vh" py={10}>
-        <Container maxW="2xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
+        <Container maxW="7xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
           <Heading size="lg" mb={2} textAlign="center">
             School Social Networks and Wellbeing Survey
           </Heading>

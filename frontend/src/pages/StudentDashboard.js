@@ -51,11 +51,17 @@ const StudentDashboard = () => {
     <>
       <Navbar />
       <Box bg="gray.100" minH="100vh" py={10}>
-        <Container maxW="2xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
+        <Container maxW="7xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
           <Heading size="lg" mb={4}>Student Dashboard</Heading>
           <Text mb={6}>Welcome to ClassForge! Here you can view or complete your surveys, check classroom allocation, and more.</Text>
           <Button colorScheme="teal" onClick={() => navigate('/survey')} mr={4}>
             Go to Survey
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/survey')}>
+          Retake Survey
+          </Button>
+          <Button variant="Outline" onClick={() => alert("Feedback system coming soon!")} mr={4}>
+          Give Feedback
           </Button>
           <Button variant="outline" onClick={handleLogout}>
             Logout

@@ -21,7 +21,7 @@ const StudentNetworkGraph = ({ name, relationships }) => {
   relationships.forEach(rel => {
     const target = rel.target_name || `Student ${rel.target}`;
     if (!nodes.find(n => n.id === target)) {
-      nodes.push({ id: target });
+        nodes.push({ id: target, relType: rel.link_type });
     }
     links.push({
       source: name,
@@ -69,11 +69,11 @@ const StudentNetworkGraph = ({ name, relationships }) => {
 >
     <ForceGraph2D
         ref={fgRef}
-        width={360}
+        width={400}
         height={400}
         graphData={{ nodes, links }}
         nodeLabel="id"
-        linkColor={link => link.color}
+        linkColor={() => '#333'}
         nodeAutoColorBy="id"
         enableNodeDrag={false} 
         enableZoomPanInteraction={true} // ✅ Allow zoom/pan
@@ -81,15 +81,23 @@ const StudentNetworkGraph = ({ name, relationships }) => {
         // height={undefined}
         
         nodeCanvasObject={(node, ctx, globalScale) => {
-          const label = node.id;
-          const fontSize = 12 / globalScale;
-          ctx.font = `${fontSize}px Sans-Serif`;
-          ctx.fillStyle = 'black';
-          ctx.textAlign = 'center';
-          ctx.fillText(label, node.x, node.y + 10);
-        }}
-        linkDirectionalArrowLength={6}
-        linkDirectionalArrowRelPos={1}
+            const radius = 6;
+            const fontSize = 12 / globalScale;
+        
+            // Colored circle for relationship type
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+            ctx.fillStyle = node.relType ? colorMap[node.relType] : '#888';
+            ctx.fill();
+        
+            // Add node label
+            ctx.font = `${fontSize}px Sans-Serif`;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'black';
+            ctx.fillText(node.id, node.x, node.y + 14);
+          }}  
+        // linkDirectionalArrowLength={6}
+        // linkDirectionalArrowRelPos={1}
         onZoom={(zoom) => {
             // Optional: restrict zoom levels if needed
             if (zoom < 0.5) fgRef.current.zoom(0.5);
