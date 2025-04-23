@@ -3,12 +3,13 @@ from database.db import SessionLocal
 from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations
 import pandas as pd
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers, saveAffiliationsToDb
-import random
+from auth import student_login_required, teacher_login_required, either_login_required
 from werkzeug.security import check_password_hash
 from survey_questions import SURVEY_QUESTION_MAP
 
 survey_routes = Blueprint('survey_routes', __name__)
 
+@student_login_required
 @survey_routes.route('/api/survey', methods=['POST'])
 def submit_survey():
     data = request.get_json()
@@ -47,6 +48,7 @@ def submit_survey():
     finally:
         db.close()
 
+@either_login_required
 @survey_routes.route('/api/students', methods=['GET'])
 def get_students():
     db = SessionLocal()
@@ -63,7 +65,7 @@ def get_students():
     finally:
         db.close()
 
-
+@either_login_required
 @survey_routes.route('/api/clubs', methods=['GET'])
 def get_clubs():
     db = SessionLocal()
@@ -87,7 +89,6 @@ def login():
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
-        print(email)
 
         db = SessionLocal()
         try:
@@ -105,8 +106,8 @@ def login():
                 session['user_email'] = user.user_email
                 session['user_type'] = user.user_type
                 session['user_id'] = user_id
-                print("\n\n -------------------------- LOGGED IN WITH ID: {} --------------------------".format(session['user_id']))
-                print("\n\n -------------------------- SESSION AFTER LOG IN: {} --------------------------".format(session))
+                print("-------------------------- LOGGED IN WITH ID: {}".format(session['user_id']))
+                print("-------------------------- SESSION AFTER LOG IN: {} ".format(session))
                 return jsonify({'message': 'Login successful', 'user_type': user.user_type}), 200
             return jsonify({'message': 'Invalid email or password'}), 401
         except Exception as e:
@@ -114,28 +115,29 @@ def login():
             return jsonify({'error': str(e)}), 500
         finally:
             db.close()
-
+@either_login_required
 @survey_routes.route('/api/logout', methods=['POST'])
 def logout():
-    print("\n\n -------------------------- LOGGING OUT ID: {} --------------------------".format(session['user_id']))
+    print("-------------------------- LOGGING OUT ID: {}".format(session['user_id']))
     session.clear()
-    print("\n\n -------------------------- SESSION AFTER LOG IN: {} --------------------------".format(session))
+    print("-------------------------- SESSION AFTER LOG IN: {}".format(session))
     return jsonify({'message': 'Logged out'}), 200
 
+@either_login_required
 @survey_routes.route('/api/current_user', methods=['GET'])
 def get_current_user():
     
-    print("\n\n -------------------------- SESSION  STATE NOW : {} --------------------------".format(session))
+    print("-------------------------- CURRENT USER : {}".format(session))
     if 'user_id' in session:
         return jsonify({'user_id': session['user_id'], 'user_type': session['user_type']}), 200
     return jsonify({'message': 'Not logged in'}), 401
 
+@either_login_required
 @survey_routes.route('/api/student-survey-responses', methods=['GET'])
 def get_student_survey_responses():
     db = SessionLocal()
     try:
-        user_id = session.get('user_id')  # Now using correct session ID
-        print("Logged-in User ID:", user_id)  # Debug
+        user_id = session.get('user_id')
 
         response = db.query(SurveyResponse).filter_by(student_id=user_id).first()
         if not response:
@@ -151,8 +153,7 @@ def get_student_survey_responses():
     finally:
         db.close()
 
-# student details get method
-# fetch relationship details including target student name and email
+@either_login_required
 @survey_routes.route('/api/student-info', methods=['GET'])
 def get_student_info():
     db = SessionLocal()
@@ -186,7 +187,7 @@ def get_student_info():
                 "email": student.email,
                 "house": student.house
             },
-            "clubs": club_names or ["None"],
+            "clubs": club_names or ["No clubs joined"],
             "relationships": detailed_relationships
         }
 
