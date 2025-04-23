@@ -66,6 +66,10 @@ const SnaSurvey = () => {
       console.log('Submitting form data:', formData);
       await axios.post('/api/survey', formData, { withCredentials: true });
       toast({ title: 'Survey submitted!', status: 'success', duration: 3000 });
+      // Wait a bit for the toast to be visible, then redirect
+      setTimeout(() => {
+        navigate('/student-dashboard');  // 🔁 Redirect to dashboard
+      }, 2000);
     } catch (error) {
       console.error('Submission error:', error);
       toast({

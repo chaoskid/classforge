@@ -1,10 +1,11 @@
 from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
-from database.models import Students, Clubs, Users, Teachers
+from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations
 import pandas as pd
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers
 import random
 from werkzeug.security import check_password_hash
+from survey_questions import SURVEY_QUESTION_MAP
 
 survey_routes = Blueprint('survey_routes', __name__)
 
@@ -134,6 +135,72 @@ def get_current_user():
     if 'user_id' in session:
         return jsonify({'user_id': session['user_id'], 'user_type': session['user_type']}), 200
     return jsonify({'message': 'Not logged in'}), 401
+
+@survey_routes.route('/api/student-survey-responses', methods=['GET'])
+def get_student_survey_responses():
+    db = SessionLocal()
+    try:
+        user_id = session.get('user_id')  # Now using correct session ID
+        print("Logged-in User ID:", user_id)  # Debug
+
+        response = db.query(SurveyResponse).filter_by(student_id=user_id).first()
+        if not response:
+            return jsonify({"message": "Survey not completed yet"}), 204
+        
+        result = {}
+        for field, question in SURVEY_QUESTION_MAP.items():
+            result[question] = getattr(response, field)
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+# student details get method
+# fetch relationship details including target student name and email
+@survey_routes.route('/api/student-info', methods=['GET'])
+def get_student_info():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        student = db.query(Students).filter_by(student_id=student_id).first()
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+
+        # Clubs
+        club_ids = db.query(Affiliations.club_id).filter_by(student_id=student_id).all()
+        club_ids = [cid[0] for cid in club_ids]
+        club_names = db.query(Clubs.club_name).filter(Clubs.club_id.in_(club_ids)).all()
+        club_names = [c[0] for c in club_names]
+
+        # Relationships with name and email
+        relationships = db.query(Relationships).filter_by(source=student_id).all()
+        detailed_relationships = []
+        for r in relationships:
+            target_student = db.query(Students).filter_by(student_id=r.target).first()
+            if target_student:
+                detailed_relationships.append({
+                    "target_name": f"{target_student.first_name} {target_student.last_name}",
+                    "target_email": target_student.email,
+                    "link_type": r.link_type
+                })
+
+        result = {
+            "student": {
+                "name": f"{student.first_name} {student.last_name}",
+                "email": student.email,
+                "house": student.house
+            },
+            "clubs": club_names or ["None"],
+            "relationships": detailed_relationships
+        }
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
 
 
 
