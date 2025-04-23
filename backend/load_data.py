@@ -25,7 +25,7 @@ def load_students(file_path):
             student_id=int(row['student_id']),
             first_name=row['first_name'],
             last_name=row['last_name'],
-            email=row['email'],
+            email=row['email'].lower(),
             house=row['house'],
             years=int(row['years']),
             academic_score=float(row['academic_score']) if pd.notnull(row['academic_score']) else None
