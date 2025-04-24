@@ -1,34 +1,69 @@
 // src/pages/Login.js
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from '../pages/axiosConfig';
 import {
-  Box, Button, Container, Heading, Input, FormControl, FormLabel,
-  useToast, Alert, AlertIcon
+  Box,
+  Button,
+  Container,
+  Heading,
+  Input,
+  FormControl,
+  FormLabel,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
+import { useToast } from '@chakra-ui/react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
-function Login() {
+export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const toast = useToast();
+  const toast    = useToast();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
   const [loginerror, setLoginerror] = useState('');
+  const [checkingSession, setCheckingSession] = useState(true);
 
-  const from = location.state?.from || '/';
+  // On mount: check existing session and redirect immediately if logged in
+  useEffect(() => {
+    axios
+      .get('/api/current_user', { withCredentials: true })
+      .then(res => {
+        const dest =
+          res.data.user_type === 'teacher'
+            ? '/teacher-dashboard'
+            : '/student-dashboard';
+        navigate(dest, { replace: true });
+      })
+      .catch(() => {
+        // no session — stop hiding the form
+        setCheckingSession(false);
+      });
+  }, [navigate]);
+
+  // While checking session, render nothing (avoids flash of login form)
+  if (checkingSession) return null;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await axios.post('/api/login', { email, password }, { withCredentials: true });
+      const response = await axios.post(
+        '/api/login',
+        { email, password },
+        { withCredentials: true }
+      );
 
       if (response.status === 200) {
         const userType = response.data.user_type;
-        if (userType === 'student') navigate('/student-dashboard');
-        else if (userType === 'teacher') navigate('/teacher-dashboard');
+        if (userType === 'student') {
+          navigate('/student-dashboard');
+        } else if (userType === 'teacher') {
+          navigate('/teacher-dashboard');
+        }
       }
     } catch (error) {
       if (error.response?.status === 401) {
@@ -55,23 +90,31 @@ function Login() {
             </Alert>
           )}
 
+          {loginerror && (
+            <Alert status="error" mb={4} borderRadius="md">
+              <AlertIcon />
+              {loginerror}
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit}>
             <FormControl isRequired mb={4}>
               <FormLabel>Email</FormLabel>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
             </FormControl>
 
             <FormControl isRequired mb={6}>
               <FormLabel>Password</FormLabel>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
             </FormControl>
-
-            {loginerror && (
-              <Alert status="error" mb={4} borderRadius="md">
-                <AlertIcon />
-                {loginerror}
-              </Alert>
-            )}
 
             <Button type="submit" colorScheme="teal" width="full" size="md">
               Login
@@ -83,5 +126,3 @@ function Login() {
     </>
   );
 }
-
-export default Login;
