@@ -1,7 +1,6 @@
-// src/components/SurveySteps/Step6_YourNetwork.js
 import React, { useEffect, useState } from 'react';
 import {
-  Box, Button, FormControl, FormLabel, VStack, Text
+  Box, Button, FormControl, FormLabel, VStack, Text, useToast, UnorderedList, ListItem
 } from '@chakra-ui/react';
 import Select from 'react-select';
 import axios from '../../pages/axiosConfig';
@@ -19,10 +18,11 @@ const networkQuestions = [
 const Step6_YourNetwork = ({ data, updateFormData, onNext, onBack }) => {
   const [studentOptions, setStudentOptions] = useState([]);
   const [clubOptions, setClubOptions] = useState([]);
+  const [errorFields, setErrorFields] = useState([]);
+  const toast = useToast();
 
   useEffect(() => {
     axios.get('/api/students').then(res => {
-      console.log("Students fetched:", res.data);
       const opts = res.data.map(stu => ({
         value: stu.student_id,
         label: `${stu.first_name} ${stu.last_name}`
@@ -43,6 +43,44 @@ const Step6_YourNetwork = ({ data, updateFormData, onNext, onBack }) => {
     updateFormData(key, selectedOptions); // store array of { value, label }
   };
 
+  const handleNext = () => {
+    const unanswered = networkQuestions
+      .filter(q => !Array.isArray(data[q.key]) || data[q.key].length === 0)
+      .map(q => ({ key: q.key, label: q.label }));
+
+    if (unanswered.length > 0) {
+      setErrorFields(unanswered.map(q => q.key));
+
+      toast({
+        title: 'Incomplete',
+        description: (
+          <Box>
+            <Text mb={2}>
+              {unanswered.length > 3
+                ? 'Please answer all questions before continuing.'
+                : 'Please answer the following questions:'}
+            </Text>
+            {unanswered.length <= 3 && (
+              <UnorderedList pl={5}>
+                {unanswered.map(q => (
+                  <ListItem key={q.key}>{q.label}</ListItem>
+                ))}
+              </UnorderedList>
+            )}
+          </Box>
+        ),
+        status: 'error',
+        duration: 6000,
+        isClosable: true,
+      });
+
+      return;
+    }
+
+    setErrorFields([]);
+    onNext();
+  };
+
   return (
     <VStack spacing={6} align="stretch">
       <Text fontSize="md" color="gray.600" mb={2}>
@@ -50,7 +88,11 @@ const Step6_YourNetwork = ({ data, updateFormData, onNext, onBack }) => {
       </Text>
 
       {networkQuestions.map((q) => (
-        <FormControl key={q.key}>
+        <FormControl
+          key={q.key}
+          isRequired
+          isInvalid={errorFields.includes(q.key)}
+        >
           <FormLabel fontWeight="semibold">{q.label}</FormLabel>
           {(q.key === 'activities' ? clubOptions.length > 0 : studentOptions.length > 0) && (
             <Select
@@ -67,7 +109,7 @@ const Step6_YourNetwork = ({ data, updateFormData, onNext, onBack }) => {
 
       <Box display="flex" justifyContent="space-between">
         <Button variant="outline" onClick={onBack}>Back</Button>
-        <Button colorScheme="teal" onClick={onNext}>Next</Button>
+        <Button colorScheme="teal" onClick={handleNext}>Next</Button>
       </Box>
     </VStack>
   );
