@@ -99,7 +99,7 @@ def load_teachers():
 
 
 if __name__ == '__main__':
-    #create_student_users()
-    #create_units()
-    #load_allocations()
+    create_student_users()
+    create_units()
+    load_allocations()
     load_teachers()
