@@ -56,6 +56,12 @@ class CalculatedScores(Base):
     social_attitude_score      = Column(Numeric(5, 3))
     school_environment_score   = Column(Numeric(5, 3))
 
+    def to_dict(self):
+        """
+        Convert this CalculatedScores ORM object into a dict.
+        """
+        return {col.name: getattr(self, col.name) for col in self.__table__.columns}
+
 class Users(Base):
     __tablename__ = "users"
 
@@ -89,6 +95,12 @@ class Relationships(Base):
     source = Column(Integer, primary_key=True)
     target = Column(Integer, ForeignKey("students.student_id"), primary_key=True)
     link_type = Column(String, primary_key=True)
+
+    def to_dict(self):
+        """
+        Convert this CalculatedScores ORM object into a dict.
+        """
+        return {col.name: getattr(self, col.name) for col in self.__table__.columns}
 
 class Allocations(Base):
     __tablename__ = "allocations"

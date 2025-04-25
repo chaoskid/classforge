@@ -1,11 +1,18 @@
 from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
-from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit
+from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores
 import pandas as pd
+import math
+import numpy as np
+import torch
+from torch_geometric.data import Data
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers, saveAffiliationsToDb
 from auth import student_login_required, teacher_login_required, either_login_required
 from werkzeug.security import check_password_hash
 from survey_questions import SURVEY_QUESTION_MAP
+from model_utils import generate_dataframes, map_link_types, map_student_ids, create_data_object
+from model.dqn.allocation_env import precompute_link_matrices
+from model.dqn.train_predict import train_and_allocate
 
 survey_routes = Blueprint('survey_routes', __name__)
 
@@ -206,4 +213,84 @@ def get_student_info():
         db.close()
 
 
+@either_login_required
+@survey_routes.route('/api/stage_allocation', methods=['GET', 'POST'])
+def stage_allocation():
+    if request.method == 'OPTIONS':
+        return jsonify({'message': 'CORS preflight response'}), 200
+    elif request.method == 'GET':
+        db = SessionLocal()
+        try:
+            user_id = session.get('user_id')
+            print("\n---------------User ID: ", user_id)
+            teacher = db.query(Teachers).filter_by(emp_id=user_id).first()
+            if not teacher:
+                return jsonify({"message": "Invalid teacher account"}), 401
+            unit_id = teacher.manage_unit
+            student_id_rows = db.query(Allocations.student_id).filter_by(unit_id=unit_id, reallocation=0).all()
+            student_ids = [row[0] for row in student_id_rows]
+            if not student_ids:
+                return jsonify({"message": "No students allocated to this unit"}), 401
+            number_of_students = len(student_ids)
+            return jsonify(unit_id = unit_id, number_of_unallocated_students=number_of_students), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        finally:
+            db.close()
+    else: 
+        return jsonify({'message': 'POST SUCCESSFULLLL'}), 200
+
+
+@either_login_required
+@survey_routes.route('/api/allocate', methods=['GET', 'POST'])
+def allocate():
+    if request.method == 'OPTIONS':
+        return jsonify({'message': 'CORS preflight response'}), 200
+    elif request.method == 'GET':
+        db = SessionLocal()
+        try:
+            user_id = session.get('user_id')
+            scores_df, relationships_df = generate_dataframes(db, user_id)
+            relationships_df = map_link_types(relationships_df)
+            scores_df, edges_df, id_map = map_student_ids(scores_df, relationships_df)
+            data = create_data_object(scores_df, edges_df)
+            print("------------ Data object created: \n", data)
+            print("\n------------ Checking for nulls in scores_df")
+            print(scores_df.isna().sum())
+
+            target_class_size = 25
+            student_data = data.x.cpu().numpy()
+            E= precompute_link_matrices(data)
+            num_students = student_data.shape[0]
+            num_classes = math.ceil(num_students / target_class_size)
+            feature_dim = student_data.shape[1]
+
+            np.random.seed(999)
+            target_feature_avgs = np.random.uniform(0.5, 0.9, size=(num_classes, feature_dim))
+            target_feature_avgs = np.round(target_feature_avgs, 2)
+            print("\n------------ Targets for each class:------------ ")
+            print(target_feature_avgs)
+            print("\n------------ Student data shape :------------ ", student_data.shape)
+            print("\n------------ Student data :------------ ", student_data)
+            print("\n------------ target class size :------------ ", target_class_size)
+            print("\n------------ Number of classes :------------ ", num_classes)
+            print("\n------------ shape of E :------------ ", E.shape)
+            print("\n------------ E :------------ ", E)
+            print("\n------------ num students total :------------ ", num_students)
+            print("\n------------ feature dim :------------ ", feature_dim)
+
+            #Call the function to train and allocate
+            alloc3 = train_and_allocate(num_classes,
+                                target_class_size,
+                                target_feature_avgs,
+                                student_data, E,250)
+            print(alloc3)
+
+            return jsonify({'message':'Good'}), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        finally:
+            db.close()
+    else: 
+        return jsonify({'message': 'POST SUCCESSFULLLL'}), 200
 
