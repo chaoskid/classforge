@@ -110,6 +110,40 @@ class Allocations(Base):
     class_id = Column(Integer)
     reallocation = Column(Integer, default=0)
 
+class AllocationsSummary(Base):
+    __tablename__ = "allocation_summary"
+
+    unit_id = Column(Integer, ForeignKey("unit.unit_id"), primary_key=True)
+    class_id = Column(Integer, primary_key=True)
+    class_label = Column(String)
+    student_count = Column(Integer)
+    alloc_academic_engagement_score  = Column(Numeric(5, 3))
+    alloc_academic_wellbeing_score   = Column(Numeric(5, 3))
+    alloc_mental_health_score        = Column(Numeric(5, 3))
+    alloc_growth_mindset_score       = Column(Numeric(5, 3))
+    alloc_gender_norm_score          = Column(Numeric(5, 3))
+    alloc_social_attitude_score      = Column(Numeric(5, 3))
+    alloc_school_environment_score   = Column(Numeric(5, 3))
+    target_academic_engagement_score  = Column(Numeric(5, 3))
+    target_academic_wellbeing_score   = Column(Numeric(5, 3))
+    target_mental_health_score        = Column(Numeric(5, 3))
+    target_growth_mindset_score       = Column(Numeric(5, 3))
+    target_gender_norm_score          = Column(Numeric(5, 3))
+    target_social_attitude_score      = Column(Numeric(5, 3))
+    target_school_environment_score   = Column(Numeric(5, 3))
+    num_friendships = Column(Integer)
+    num_influence = Column(Integer)
+    num_feedback = Column(Integer)
+    num_more_time = Column(Integer)
+    num_advice = Column(Integer)
+    num_disrespect = Column(Integer)
+    def to_dict(self):
+        """
+        Convert this AllocationsSummary ORM object into a dict.
+        """
+        return {col.name: getattr(self, col.name) for col in self.__table__.columns}
+
+
 class Unit(Base):
     __tablename__ = "unit"
 

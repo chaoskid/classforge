@@ -10,9 +10,9 @@ from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, respon
 from auth import student_login_required, teacher_login_required, either_login_required
 from werkzeug.security import check_password_hash
 from survey_questions import SURVEY_QUESTION_MAP
-from model_utils import generate_dataframes, map_link_types, map_student_ids, create_data_object
+from model_utils import generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations
 from model.dqn.allocation_env import precompute_link_matrices
-from model.dqn.train_predict import train_and_allocate
+from model.dqn.train_predict import train_and_allocate, returnEnvAndAgent, allocate_with_existing_model
 
 survey_routes = Blueprint('survey_routes', __name__)
 
@@ -250,12 +250,12 @@ def allocate():
         db = SessionLocal()
         try:
             user_id = session.get('user_id')
-            scores_df, relationships_df = generate_dataframes(db, user_id)
+            unit_id, scores_df, relationships_df = generate_dataframes(db, user_id)
             relationships_df = map_link_types(relationships_df)
             scores_df, edges_df, id_map = map_student_ids(scores_df, relationships_df)
             data = create_data_object(scores_df, edges_df)
-            print("------------ Data object created: \n", data)
-            print("\n------------ Checking for nulls in scores_df")
+            print("\n------------ Data object created: \n", data)
+            print("\n------------ Checking for nulls in scores_df: ")
             print(scores_df.isna().sum())
 
             target_class_size = 25
@@ -268,25 +268,33 @@ def allocate():
             np.random.seed(999)
             target_feature_avgs = np.random.uniform(0.5, 0.9, size=(num_classes, feature_dim))
             target_feature_avgs = np.round(target_feature_avgs, 2)
-            print("\n------------ Targets for each class:------------ ")
+            print("\n------------ Targets for each class:")
             print(target_feature_avgs)
-            print("\n------------ Student data shape :------------ ", student_data.shape)
-            print("\n------------ Student data :------------ ", student_data)
-            print("\n------------ target class size :------------ ", target_class_size)
-            print("\n------------ Number of classes :------------ ", num_classes)
-            print("\n------------ shape of E :------------ ", E.shape)
-            print("\n------------ E :------------ ", E)
-            print("\n------------ num students total :------------ ", num_students)
-            print("\n------------ feature dim :------------ ", feature_dim)
+            print("\n------------ Student data shape :", student_data.shape)
+            print("\n------------ Student data :\n", student_data)
+            print("\n------------ target class size : ", target_class_size)
+            print("\n------------ Number of classes : ", num_classes)
+            print("\n------------ shape of existing links matrix : ", E.shape)
+            print("\n------------ Existing links matrix : \n", E)
+            print("\n------------ num students total : ", num_students)
+            print("\n------------ feature dim : ", feature_dim)
 
             #Call the function to train and allocate
-            alloc3 = train_and_allocate(num_classes,
-                                target_class_size,
-                                target_feature_avgs,
-                                student_data, E,250)
-            print(alloc3)
+            #allocation_summary = train_and_allocate(unit_id,num_classes,
+            #                    target_class_size,
+            #                    target_feature_avgs,
+            #                    student_data, E,250)
+            
+            env, agent = returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
+                      model_path='model/dqn/dqn_model.pth')
+        
+            allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E)
+        
+            save_allocation_summary(unit_id, allocation_summary, db)
+            upserted = save_allocations(db, env, id_map, unit_id)
 
-            return jsonify({'message':'Good'}), 200
+            return jsonify({'message':'Allocated {} students into {} classes and updated {} records in database'.format(num_students,num_classes,upserted),
+                            'allocation_summary': allocation_summary}), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
         finally:

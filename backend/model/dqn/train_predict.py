@@ -1,6 +1,5 @@
 # train_predict.py
 import numpy as np
-import math
 import random
 import torch
 
@@ -19,8 +18,7 @@ def print_link_summary(env, E):
     'feedback'   : 2,
     'more_time'  : 3,
     'advice'     : 4,
-    'disrespect' : 5,
-    'no_link'    : 6
+    'disrespect' : 5
 }
     # invert edge_types so we can go from integer → string
     rev = {v: k for k, v in edge_types.items()}
@@ -30,7 +28,7 @@ def print_link_summary(env, E):
     labels_by_int = [rev[i] for i in range(n_labels)]
 
     # EXISTING LINKS
-    print("Existing Links (CSV Format):")
+    print("\n------------ Existing Links (CSV Format):")
     # header
     header = "Class," + ",".join(f"existing_label_{i}" for i in range(n_labels))
     print(header)
@@ -50,8 +48,84 @@ def print_link_summary(env, E):
         row = [ str(existing_counts[ labels_by_int[i] ]) for i in range(n_labels) ]
         print(f"{cls_idx}," + ",".join(row))
 
+def build_allocation_summary(env, target_feature_avgs, unit_id,E):
+    """
+    Walks env.state to build a list of dicts, one per class,
+    with all the metrics you need for AllocationsSummary.
+    """
+    summary = []
+    # first get the link counts from your utility
+    # but here we re-compute them into dicts:
+    friends, influence, feedback, more_time, advice, disrespect, no_link = ([] for _ in range(7))
+    # reuse the same logic from print_link_summary but accumulating into lists per class
+    edge_types = {'friends':0,'influence':1,'feedback':2,'more_time':3,
+                  'advice':4,'disrespect':5,'no_link':6}
+    rev = {v:k for k,v in edge_types.items()}
+    # precompute both existing and predicted per class into two lists of dicts
+    existing_counts_list = []
+    predicted_counts_list = []
+    for cls_idx in range(env.num_classes):
+        members = env.state[cls_idx]['student_indices']
+        exc = {lbl:0 for lbl in edge_types}
+        pdc = {lbl:0 for lbl in edge_types}
+        for i in members:
+            for j in members:
+                if i==j: continue
+                lbl = int(E[i,j])
+                exc[rev[lbl]] += 1
+                if lbl==edge_types['no_link']:
+                    pl = int(P[i,j])
+                    pdc[rev[pl]] += 1
+        existing_counts_list.append(exc)
+        predicted_counts_list.append(pdc)
 
-def train_and_allocate(num_classes,
+    # now build per-class rows
+    for i, tgt in enumerate(target_feature_avgs):
+        cnt = env.state[i]['count']
+        if cnt>0:
+            avg = (env.state[i]['sum_features']/cnt).round(3)
+        else:
+            avg = [0.0]*len(tgt)
+
+        row = {
+            'unit_id':                 unit_id,
+            'class_id':                i,
+            'class_label':             f"class_{i}",
+            'student_count':           int(cnt),
+
+            # allocated averages:
+            'alloc_academic_engagement_score': float(avg[0]),
+            'alloc_academic_wellbeing_score':  float(avg[1]),
+            'alloc_mental_health_score':       float(avg[2]),
+            'alloc_growth_mindset_score':      float(avg[3]),
+            'alloc_gender_norm_score':         float(avg[4]),
+            'alloc_social_attitude_score':     float(avg[5]),
+            'alloc_school_environment_score':  float(avg[6]),
+
+            # target averages:
+            'target_academic_engagement_score': float(round(tgt[0],3)),
+            'target_academic_wellbeing_score':  float(round(tgt[1],3)),
+            'target_mental_health_score':       float(round(tgt[2],3)),
+            'target_growth_mindset_score':      float(round(tgt[3],3)),
+            'target_gender_norm_score':         float(round(tgt[4],3)),
+            'target_social_attitude_score':     float(round(tgt[5],3)),
+            'target_school_environment_score':  float(round(tgt[6],3)),
+
+            # link counts
+            'num_friendships':   existing_counts_list[i]['friends'],
+            'num_influence':     existing_counts_list[i]['influence'],
+            'num_feedback':      existing_counts_list[i]['feedback'],
+            'num_more_time':     existing_counts_list[i]['more_time'],
+            'num_advice':        existing_counts_list[i]['advice'],
+            'num_disrespect':    existing_counts_list[i]['disrespect'],
+            # you can add predicted counts if you want...
+        }
+        summary.append(row)
+
+    return summary
+
+
+def train_and_allocate(unit_id,num_classes,
                        target_class_size,
                        target_feature_avgs,
                        student_data,
@@ -90,45 +164,18 @@ def train_and_allocate(num_classes,
                 print(f"Episode 0{ep+1}: Total Reward = {total_reward:.2f}, Epsilon = {agent.epsilon:.3f}")
             else:
                 print(f"Episode {ep+1}: Total Reward = {total_reward:.2f}, Epsilon = {agent.epsilon:.3f}")
-
-    # final allocation
-    env.state = env._init_state()
-    allocations = []
-    idxs = list(range(len(student_data)))
-    random.shuffle(idxs)
-    for idx in idxs:
-        feats = student_data[idx]
-        s = state_to_vector(env.state, feature_dim)
-        a = agent.act(s)
-        allocations.append(a)
-        env.step(feats, a, idx)
-
-    print("\nFinal Class Summary:")
-    for i, tgt in enumerate(target_feature_avgs):
-        cnt = env.state[i]['count']
-        if cnt > 0:
-            avg = env.state[i]['sum_features'] / cnt
-        else:
-            avg = np.zeros(feature_dim)
-        
-        avg_rounded = [ round(float(x), 2) for x in avg ]
-    
-        print(
-            f"Class {i}: "
-            f"Count = {cnt}, "
-            f"AvgFeatures= {avg_rounded}, "
-            f"TargetFeatures = {np.round(tgt,2).tolist()}"
-        )
-    print_link_summary(env, E)
+    print(f"\n---------------- Training completed after {num_episodes} episodes.")
     # Save the trained model for inference
-    model_path = f"dqn_model.pth"
+    model_path = f"model/dqn/dqn_model.pth"
     torch.save(agent.model.state_dict(), model_path)
-    print(f"Model saved to {model_path} for later inference.")
+    print(f"\n---------------- Model saved to {model_path} for later inference.")
+    print(f"---------------- Allocating with the saved model: ")
+    allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E)
     
-    return allocations
+    return allocation_summary
 
 def returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
-                      model_path='dqn_model.pth'):
+                      model_path='model/dqn/dqn_model.pth'):
     """
     Initializes the environment & loads a pretrained agent for inference.
 
@@ -165,7 +212,7 @@ def printSummary(env, target_feature_avgs):
     Prints class counts, actual and target features rounded to 2 decimals.
     """
     feature_dim = target_feature_avgs.shape[1]
-    print("\nFinal Class Summary:")
+    print("\n------------ Final Class Summary:")
     for i, tgt in enumerate(target_feature_avgs):
         cnt = env.state[i]['count']
         if cnt > 0:
@@ -182,7 +229,7 @@ def printSummary(env, target_feature_avgs):
         )
 
 
-def allocate(student_data, env, agent):
+def allocate_with_existing_model(student_data, env, agent, unit_id,E):
     """
     Runs a single allocation pass with a loaded agent.
 
@@ -193,6 +240,7 @@ def allocate(student_data, env, agent):
     # reset environment state
     env.state = env._init_state()
 
+    print(f"\n---------------- Allocating with the saved model: ")
     allocations = []
     idxs = list(range(len(student_data)))
     random.shuffle(idxs)
@@ -203,8 +251,9 @@ def allocate(student_data, env, agent):
         allocations.append(a)
         env.step(feats, a, idx)
 
+    allocation_summary = build_allocation_summary(env, env.target_feature_avgs, unit_id,E)
     # print summaries
     printSummary(env, env.target_feature_avgs)
     print_link_summary(env, env.E)
 
-    return allocations
+    return allocation_summary
