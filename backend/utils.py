@@ -135,6 +135,8 @@ def saveRelationshipsToDb(response,session):
             target_id = entry.get('value')
             if target_id is None:
                 continue
+            if link_type == 'popular':
+                link_type = 'influence'
             orm_objs.append(
                 Relationships(
                     source=source_id,
