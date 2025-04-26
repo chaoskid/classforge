@@ -191,3 +191,5 @@ def saveAffiliationsToDb(db,data):
 #print(survey_response_df_back)
 #features = calculateFeatures(survey_response_df_back)
 #print(features)
+
+# skjbs.kjb.sdjkbc
