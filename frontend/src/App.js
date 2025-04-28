@@ -8,6 +8,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import AllocationResults from './pages/AllocationResults';
 import SnaSurvey from './pages/SnaSurvey';
+import ClassVisualizations from './pages/ClassVisualizations';
 import Login from './pages/login'; // capital "L" for consistency with file
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
             <Route path="/student-dashboard" element={<StudentDashboard />} />
             <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
             <Route path="/allocation-results" element={<AllocationResults />} />
+            <Route path="/class-visualizations" element={<ClassVisualizations />} />
             <Route path="/survey" element={<SnaSurvey />} />
           </Route>
 

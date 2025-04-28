@@ -192,7 +192,7 @@ const Allocations = () => {
           <Heading size="md" mb={2}>Classes Options</Heading>
           <Divider mb={4} />
           <HStack spacing={6}>
-            <Button colorScheme="teal" onClick={() => handleInProgress('View Classes')}>
+            <Button colorScheme="teal" onClick={() => navigate('/class-visualizations')}>
               View Classes
             </Button>
             <Button colorScheme="teal" onClick={() => handleInProgress('Allocation Summary (click Allocate Students to see the summary)')}>
