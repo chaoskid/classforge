@@ -9,8 +9,9 @@ from torch_geometric.data import Data
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers, saveAffiliationsToDb
 from auth import student_login_required, teacher_login_required, either_login_required
 from werkzeug.security import check_password_hash
+from sqlalchemy import func
 from survey_questions import SURVEY_QUESTION_MAP
-from model_utils import generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations
+from model_utils import generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations, generate_target_matrix
 from model.dqn.allocation_env import precompute_link_matrices
 from model.dqn.train_predict import train_and_allocate, returnEnvAndAgent, allocate_with_existing_model
 
@@ -232,12 +233,35 @@ def stage_allocation():
             if not student_ids:
                 return jsonify({"message": "No students allocated to this unit"}), 401
             number_of_students = len(student_ids)
-            return jsonify(unit_id = unit_id, number_of_unallocated_students=number_of_students), 200
+            
+            # Calculate the global averages for each score
+            avg_academic_engagement = db.query(func.avg(CalculatedScores.academic_engagement_score)).scalar()
+            avg_academic_wellbeing = db.query(func.avg(CalculatedScores.academic_wellbeing_score)).scalar()
+            avg_mental_health = db.query(func.avg(CalculatedScores.mental_health_score)).scalar()
+            avg_growth_mindset = db.query(func.avg(CalculatedScores.growth_mindset_score)).scalar()
+            avg_gender_norm = db.query(func.avg(CalculatedScores.gender_norm_score)).scalar()
+            avg_social_attitude = db.query(func.avg(CalculatedScores.social_attitude_score)).scalar()
+            avg_school_environment = db.query(func.avg(CalculatedScores.school_environment_score)).scalar()
+
+            # Send the values to the frontend
+            return jsonify({
+                "unit_id": unit_id,
+                "number_of_unallocated_students": number_of_students,
+                "global_averages": {
+                    "academic_engagement_score": avg_academic_engagement,
+                    "academic_wellbeing_score": avg_academic_wellbeing,
+                    "mental_health_score": avg_mental_health,
+                    "growth_mindset_score": avg_growth_mindset,
+                    "gender_norm_score": avg_gender_norm,
+                    "social_attitude_score": avg_social_attitude,
+                    "school_environment_score": avg_school_environment
+                }
+            }), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
         finally:
             db.close()
-    else: 
+    else:
         return jsonify({'message': 'POST SUCCESSFULLLL'}), 200
 
 
@@ -255,6 +279,7 @@ def allocate():
             return jsonify({"error": "Invalid model path"}), 400
         if num_classes not in [5, 7, 9]:
             return jsonify({"error": "Invalid number of classes"}), 400
+        target_feature_avgs = generate_target_matrix(data.get('target_values'))
         db = SessionLocal()
         try:
             user_id = session.get('user_id')
@@ -273,9 +298,10 @@ def allocate():
             target_class_size = math.ceil(num_students / num_classes)
             feature_dim = student_data.shape[1]
 
-            np.random.seed(8)
-            target_feature_avgs = np.random.uniform(0.5, 0.9, size=(num_classes, feature_dim))
-            target_feature_avgs = np.round(target_feature_avgs, 2)
+            #np.random.seed(8)
+            #target_feature_avgs = np.random.uniform(0.5, 0.9, size=(num_classes, feature_dim))
+            #target_feature_avgs = np.round(target_feature_avgs, 2)
+            
             print("\n------------ Targets for each class:")
             print(target_feature_avgs)
             print("\n------------ Student data shape :", student_data.shape)
