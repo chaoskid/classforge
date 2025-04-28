@@ -246,7 +246,15 @@ def stage_allocation():
 def allocate():
     if request.method == 'OPTIONS':
         return jsonify({'message': 'CORS preflight response'}), 200
-    elif request.method == 'GET':
+    elif request.method == 'POST':
+        data = request.get_json()
+        model = data.get('model_path')
+        num_classes = data.get('num_classes')
+
+        if model not in ['dq5.pth', 'dq7.pth', 'dq9.pth']:
+            return jsonify({"error": "Invalid model path"}), 400
+        if num_classes not in [5, 7, 9]:
+            return jsonify({"error": "Invalid number of classes"}), 400
         db = SessionLocal()
         try:
             user_id = session.get('user_id')
@@ -258,14 +266,14 @@ def allocate():
             print("\n------------ Checking for nulls in scores_df: ")
             print(scores_df.isna().sum())
 
-            target_class_size = 25
+            #num_classes = 7
             student_data = data.x.cpu().numpy()
             E= precompute_link_matrices(data)
             num_students = student_data.shape[0]
-            num_classes = math.ceil(num_students / target_class_size)
+            target_class_size = math.ceil(num_students / num_classes)
             feature_dim = student_data.shape[1]
 
-            np.random.seed(999)
+            np.random.seed(8)
             target_feature_avgs = np.random.uniform(0.5, 0.9, size=(num_classes, feature_dim))
             target_feature_avgs = np.round(target_feature_avgs, 2)
             print("\n------------ Targets for each class:")
@@ -284,9 +292,10 @@ def allocate():
             #                    target_class_size,
             #                    target_feature_avgs,
             #                    student_data, E,250)
-            
+            model_path = "model/dqn/d{}.pth".format(num_classes)
+            print('"\n------------ using model: {}'.format(model_path))
             env, agent = returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
-                      model_path='model/dqn/d7.pth')
+                      model_path)
         
             allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E)
         
@@ -296,9 +305,10 @@ def allocate():
             return jsonify({'message':'Allocated {} students into {} classes and updated {} records in database'.format(num_students,num_classes,upserted),
                             'allocation_summary': allocation_summary}), 200
         except Exception as e:
+            print(e)
             return jsonify({"error": str(e)}), 500
         finally:
             db.close()
     else: 
-        return jsonify({'message': 'POST SUCCESSFULLLL'}), 200
+        return jsonify({'message': 'GET SUCCESSFULLLL'}), 200
 

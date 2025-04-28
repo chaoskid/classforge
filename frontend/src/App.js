@@ -9,6 +9,7 @@ import TeacherDashboard from './pages/TeacherDashboard';
 import AllocationResults from './pages/AllocationResults';
 import SnaSurvey from './pages/SnaSurvey';
 import Login from './pages/login'; // capital "L" for consistency with file
+import AllocationSettings from './pages/AllocationSettings';
 
 function App() {
   return (
@@ -23,6 +24,9 @@ function App() {
             <Route path="/student-dashboard" element={<StudentDashboard />} />
             <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
             <Route path="/allocation-results" element={<AllocationResults />} />
+            <Route path="/allocation-settings" element={<AllocationSettings />} />
+            
+            {/* Survey route */}
             <Route path="/survey" element={<SnaSurvey />} />
           </Route>
 
