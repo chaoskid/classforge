@@ -166,7 +166,7 @@ def train_and_allocate(unit_id,num_classes,
                 print(f"Episode {ep+1}: Total Reward = {total_reward:.2f}, Epsilon = {agent.epsilon:.3f}")
     print(f"\n---------------- Training completed after {num_episodes} episodes.")
     # Save the trained model for inference
-    model_path = f"model/dqn/dqn_model.pth"
+    model_path = f"model/dqn/d7.pth"
     torch.save(agent.model.state_dict(), model_path)
     print(f"\n---------------- Model saved to {model_path} for later inference.")
     print(f"---------------- Allocating with the saved model: ")
@@ -175,7 +175,7 @@ def train_and_allocate(unit_id,num_classes,
     return allocation_summary
 
 def returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
-                      model_path='model/dqn/dqn_model.pth'):
+                      model_path='model/dqn/d7.pth'):
     """
     Initializes the environment & loads a pretrained agent for inference.
 

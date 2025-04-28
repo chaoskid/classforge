@@ -6,7 +6,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import PrivateRoute from './components/PrivateRoute';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
-import Allocations from './pages/Allocations';
 import AllocationResults from './pages/AllocationResults';
 import SnaSurvey from './pages/SnaSurvey';
 import Login from './pages/login'; // capital "L" for consistency with file
@@ -23,7 +22,6 @@ function App() {
           <Route element={<PrivateRoute />}>
             <Route path="/student-dashboard" element={<StudentDashboard />} />
             <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
-            <Route path="/teacher/allocations" element={<Allocations/>}/>
             <Route path="/allocation-results" element={<AllocationResults />} />
             <Route path="/survey" element={<SnaSurvey />} />
           </Route>

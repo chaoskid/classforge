@@ -286,7 +286,7 @@ def allocate():
             #                    student_data, E,250)
             
             env, agent = returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
-                      model_path='model/dqn/dqn_model.pth')
+                      model_path='model/dqn/d7.pth')
         
             allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E)
         
