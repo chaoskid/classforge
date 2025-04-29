@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
-from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores
+from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores, AllocationsSummary
 import pandas as pd
 import math
 import numpy as np
@@ -338,3 +338,76 @@ def allocate():
     else: 
         return jsonify({'message': 'GET SUCCESSFULLLL'}), 200
 
+@survey_routes.route('/api/allocation-summary', methods=['GET'])
+@either_login_required
+def get_allocation_summary():
+    db = SessionLocal()
+    try:
+        rows = db.query(AllocationsSummary).all()
+        data = [r.to_dict() for r in rows]
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@survey_routes.route('/api/allocation-summary/<int:class_id>', methods=['GET'])
+@either_login_required
+def get_class_summary(class_id):
+    db = SessionLocal()
+    try:
+        r = db.query(AllocationsSummary).filter_by(class_id=class_id).first()
+        if not r:
+            return jsonify({"message": "Class not found"}), 404
+        return jsonify(r.to_dict()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@survey_routes.route('/api/class-relationships', methods=['GET'])
+@either_login_required
+def get_class_relationships():
+    class_id = request.args.get('class_id', type=int)
+    rel_type = request.args.get('relationship', default=None, type=str)
+    db = SessionLocal()
+    try:
+        # 1) Get all student IDs in this class
+        student_rows = db.query(Allocations.student_id) \
+                         .filter_by(class_id=class_id) \
+                         .all()
+        student_ids = [row[0] for row in student_rows]
+
+        # 2) Query only those relationships that connect two students in this class
+        q = db.query(Relationships) \
+              .filter(Relationships.source.in_(student_ids),
+                      Relationships.target.in_(student_ids))
+        if rel_type:
+            q = q.filter_by(link_type=rel_type)
+        rels = q.all()
+
+        # 3) Build the nodes and links lists
+        nodes = [
+            {
+                "id": f"S-{sid}",
+                "class_label": f"class_{class_id}"
+            }
+            for sid in student_ids
+        ]
+        links = [
+            {
+                "source": f"S-{r.source}",
+                "target": f"S-{r.target}",
+                "link_type": r.link_type
+            }
+            for r in rels
+        ]
+
+        return jsonify({ "nodes": nodes, "links": links }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        db.close()
