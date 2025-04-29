@@ -143,6 +143,10 @@ const Allocations = () => {
     }
   };
 
+  const handleAllocateClick = () => {
+    navigate('/allocation-settings');
+  };
+
   const handleInProgress = (section) => alert(`${section} page is in progress`);
 
   return (
@@ -165,7 +169,7 @@ const Allocations = () => {
           <Heading size="lg" mb={4}>Allocations</Heading>
           <Divider mb={6} />
           <SimpleGrid columns={[1, 2, 4]} spacing={6} mb={10}>
-            <Button colorScheme="blue" onClick={handleAllocate} isLoading={loading}>
+            <Button colorScheme="blue" onClick={handleAllocateClick} isLoading={loading}>
               Allocate Students
             </Button>
             <Button colorScheme="blue" onClick={() => handleInProgress('Manual Override')}>
