@@ -72,30 +72,35 @@ const StudentNetworkGraph = ({ name, relationships }) => {
         width={400}
         height={400}
         graphData={{ nodes, links }}
-        nodeLabel="id"
-        linkColor={() => '#333'}
+        // nodeLabel="id"
+        // linkColor={() => '#333'}
         nodeAutoColorBy="id"
         enableNodeDrag={false} 
         enableZoomPanInteraction={true} // ✅ Allow zoom/pan
         // width={undefined} // ✅ Let it fill the container
         // height={undefined}
         
-        nodeCanvasObject={(node, ctx, globalScale) => {
-            const radius = 6;
-            const fontSize = 12 / globalScale;
+        nodeCanvasObject={(node, ctx) => {
+          const radius = 3;
         
-            // Colored circle for relationship type
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-            ctx.fillStyle = node.relType ? colorMap[node.relType] : '#888';
-            ctx.fill();
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+          ctx.fillStyle = 'black'; // all dots are black
+          ctx.fill();
+        }}
         
-            // Add node label
-            ctx.font = `${fontSize}px Sans-Serif`;
-            ctx.textAlign = 'center';
-            ctx.fillStyle = 'black';
-            ctx.fillText(node.id, node.x, node.y + 14);
-          }}  
+        nodePointerAreaPaint={(node, color, ctx) => {
+          const radius = 5;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+          ctx.fill();
+        }}
+        
+        nodeLabel={(node) => `${node.id}`}  // this will only show on hover
+        
+        linkColor={(link) => link.color}  // Use color from colorMap
+        
         // linkDirectionalArrowLength={6}
         // linkDirectionalArrowRelPos={1}
         onZoom={(zoom) => {
