@@ -85,7 +85,7 @@ const StudentNetworkGraph = ({ name, relationships }) => {
         
           ctx.beginPath();
           ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-          ctx.fillStyle = 'black'; // all dots are black
+          ctx.fillStyle = '#64748B'; // all dots are black
           ctx.fill();
         }}
         

@@ -183,7 +183,15 @@ def get_student_info():
         unit_names = db.query(Unit.unit_name).filter(Unit.unit_id.in_(unit_ids)).all()
         unit_names = [u[0] for u in unit_names]
         print(unit_names)
+        
+        # Class allocation
+        allocation = db.query(Allocations).filter_by(student_id=student_id).first()
+        class_id = allocation.class_id if allocation else None
 
+        classmate_ids = []
+        if class_id is not None:
+            classmate_rows = db.query(Allocations.student_id).filter_by(class_id=class_id).all()
+            classmate_ids = [r[0] for r in classmate_rows if r[0] != student_id]
         # Relationships with name and email
         relationships = db.query(Relationships).filter_by(source=student_id).all()
         detailed_relationships = []
@@ -193,6 +201,7 @@ def get_student_info():
                 detailed_relationships.append({
                     "target_name": f"{target_student.first_name} {target_student.last_name}",
                     "target_email": target_student.email,
+                    "target": target_student.student_id,  # ✅ Required for matching
                     "link_type": r.link_type
                 })
 
@@ -200,11 +209,15 @@ def get_student_info():
             "student": {
                 "name": f"{student.first_name} {student.last_name}",
                 "email": student.email,
-                "house": student.house
+                "house": student.house,
+                "class_id": class_id,
+                
+
             },
             "clubs": club_names or ["No clubs joined"],
             "units": unit_names or ["No units enrolled"],
-            "relationships": detailed_relationships
+            "relationships": detailed_relationships,
+            "classmates": classmate_ids
         }
 
         return jsonify(result), 200

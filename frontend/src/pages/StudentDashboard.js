@@ -15,12 +15,17 @@ import Footer from '../components/Footer';
 import axios from '../pages/axiosConfig';
 import { useNavigate } from 'react-router-dom';
 import StudentNetworkGraph from '../components/StudentNetworkGraph';
+import GaugeChart from 'react-gauge-chart';
+import { CircularProgressbarWithChildren, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
+
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [responses, setResponses] = useState({});
   const [studentDetails, setStudentDetails] = useState({});
-  
+  const [retention, setRetention] = useState(0);
+
   useEffect(() => {
     axios.get('/api/student-survey-responses', { withCredentials: true })
       .then(res => {
@@ -46,6 +51,34 @@ const StudentDashboard = () => {
     await axios.post('/api/logout', {}, { withCredentials: true });
     navigate('/login');
   };
+  useEffect(() => {
+    if (
+      studentDetails.relationships &&
+      studentDetails.classmates &&
+      studentDetails.student
+    ) {
+      const myId = studentDetails.student.student_id;
+      const myClassmates = studentDetails.classmates;
+    
+      const positiveLinks = studentDetails.relationships.filter(
+        (rel) =>
+          rel.source === myId &&  // optional: filter by source to be sure
+          ["friends", "advice", "influence"].includes(rel.link_type)
+      );
+  
+      const retainedLinks = positiveLinks.filter((rel) =>
+        myClassmates.includes(rel.target)
+      );
+  
+      const retentionPercent =
+        positiveLinks.length > 0
+          ? retainedLinks.length / positiveLinks.length
+          : 0;
+  
+      setRetention(retentionPercent);
+    }
+  }, [studentDetails]);
+  
 
   return (
     <>
@@ -68,20 +101,30 @@ const StudentDashboard = () => {
           </Button>
           {Object.keys(responses).length > 0 && (
   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={10}>
-    {/* 📋 Survey Responses Box */}
-    <Box p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
-      <Heading size="md" mb={4}>Your Survey Responses</Heading>
-      <Table size="sm" variant="simple">
-        <Tbody>
-          {Object.entries(responses).map(([question, answer], idx) => (
-            <Tr key={idx}>
-              <Td fontWeight="600">{question}</Td>
-              <Td>{answer}</Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
-    </Box>
+      {/* 📋 Survey Responses Box */}
+      <Box mb={6} p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
+  <Heading size="sm" mb={2}>Friendship Retention</Heading>
+
+  <Box w="200px" mx="auto" mt={4} transform="rotate(-90deg)">
+    <CircularProgressbarWithChildren
+      value={retention * 100}
+      maxValue={100}
+      strokeWidth={10}
+      styles={buildStyles({
+        pathColor: '#0a2f5c',
+        trailColor: '#f4e3c1',
+        strokeLinecap: 'butt',
+        rotation: 1, // Half-circle
+      })}
+      circleRatio={0.5} // Half circle
+    >
+      <div style={{ transform: 'rotate(90deg)' }}>
+        <Text fontSize="2xl" fontWeight="bold">{Math.round(retention * 100)}%</Text>
+      </div>
+    </CircularProgressbarWithChildren>
+  </Box>
+
+</Box>
 
     <Box p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
       <Heading size="md" mb={4}>Student Info</Heading>
