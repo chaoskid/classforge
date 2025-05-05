@@ -323,7 +323,7 @@ def allocate():
             env, agent = returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
                       model_path)
         
-            allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E)
+            allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E,target_class_size,target_feature_avgs)
         
             save_allocation_summary(unit_id, allocation_summary, db)
             upserted = save_allocations(db, env, id_map, unit_id)
