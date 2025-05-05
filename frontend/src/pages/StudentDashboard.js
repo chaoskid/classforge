@@ -15,9 +15,10 @@ import Footer from '../components/Footer';
 import axios from '../pages/axiosConfig';
 import { useNavigate } from 'react-router-dom';
 import StudentNetworkGraph from '../components/StudentNetworkGraph';
-import GaugeChart from 'react-gauge-chart';
 import { CircularProgressbarWithChildren, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import StudentRadarChart from '../components/StudentRadarChart';
+
 
 
 const StudentDashboard = () => {
@@ -33,13 +34,7 @@ const StudentDashboard = () => {
           setResponses(res.data);
         }
       }).catch(err => console.error(err));
-      axios.post('/api/student-details', {}, { withCredentials: true })
-      .then(res => {
-        if (res.status === 200) {
-          setStudentDetails(res.data);
-        }
-      })
-      .catch(err => console.error(err));
+      
       axios.get('/api/student-info', { withCredentials: true })
     .then(res => {
       if (res.status === 200) {
@@ -103,7 +98,7 @@ const StudentDashboard = () => {
   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={10}>
       {/* 📋 Survey Responses Box */}
       <Box mb={6} p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
-  <Heading size="sm" mb={2}>Friendship Retention</Heading>
+  <Heading size="md" mb={4}>Friendship Retention</Heading>
 
   <Box w="200px" mx="auto" mt={4} transform="rotate(-90deg)">
     <CircularProgressbarWithChildren
@@ -123,6 +118,17 @@ const StudentDashboard = () => {
       </div>
     </CircularProgressbarWithChildren>
   </Box>
+  
+  {studentDetails?.student?.scores && (
+  <Box mt={10}>
+  <Heading size="md" mb={4}>Personal Wellbeing Profile</Heading>
+  <Box w="100%" maxW="500px" mx="auto" h="400px">
+    <StudentRadarChart scores={studentDetails.student.scores} />
+  </Box>
+</Box>
+)}
+
+
 
 </Box>
 
@@ -134,7 +140,7 @@ const StudentDashboard = () => {
       <Text><b>Clubs:</b> {studentDetails?.clubs?.join(', ') || 'None'}</Text>
       {studentDetails?.relationships?.length > 0 && (
         <Box mt={6}>
-          <Heading size="sm" mb={2}>Relationship Network</Heading>
+          <Heading size="md" mb={4}>Relationship Network</Heading>
           <StudentNetworkGraph
             name={studentDetails.student?.name || "You"}
             relationships={studentDetails.relationships}

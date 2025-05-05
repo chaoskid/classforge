@@ -183,7 +183,20 @@ def get_student_info():
         unit_names = db.query(Unit.unit_name).filter(Unit.unit_id.in_(unit_ids)).all()
         unit_names = [u[0] for u in unit_names]
         print(unit_names)
-        
+        scores = db.query(CalculatedScores).filter_by(student_id=student_id).first()
+        if scores:
+            student_scores= {
+                "academic_engagement_score": scores.academic_engagement_score,
+                "academic_wellbeing_score": scores.academic_wellbeing_score,
+                "mental_health_score": scores.mental_health_score,
+                "growth_mindset_score": scores.growth_mindset_score,
+                "gender_norm_score": scores.gender_norm_score,
+                "social_attitude_score": scores.social_attitude_score,
+                "school_environment_score": scores.school_environment_score,
+            }
+        else:
+            student_scores={}
+
         # Class allocation
         allocation = db.query(Allocations).filter_by(student_id=student_id).first()
         class_id = allocation.class_id if allocation else None
@@ -211,6 +224,7 @@ def get_student_info():
                 "email": student.email,
                 "house": student.house,
                 "class_id": class_id,
+                "scores":student_scores
                 
 
             },
