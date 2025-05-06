@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
 from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores
+from sqlalchemy import func
 import pandas as pd
 import math
 import numpy as np
@@ -286,7 +287,7 @@ def allocate():
             #                    student_data, E,250)
             
             env, agent = returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
-                      model_path='model/dqn/dqn_model.pth')
+                      model_path='model/dqn/d7.pth')
         
             allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E)
         
@@ -302,3 +303,141 @@ def allocate():
     else: 
         return jsonify({'message': 'POST SUCCESSFULLLL'}), 200
 
+@either_login_required
+@survey_routes.route('/api/top-clubs', methods=['GET'])
+def get_top_clubs():
+    db = SessionLocal()
+    try:
+        from sqlalchemy import func, desc
+
+        # Join Affiliations with Clubs and count affiliations per club
+        results = (
+            db.query(Clubs.club_name, func.count(Affiliations.student_id).label("count"))
+            .join(Affiliations, Clubs.club_id == Affiliations.club_id)
+            .group_by(Clubs.club_id)
+            .order_by(desc("count"))
+            .limit(5)
+            .all()
+        )
+
+        # Convert to list of dicts
+        top_clubs = [{"club_name": name, "count": count} for name, count in results]
+        return jsonify(top_clubs), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@either_login_required
+@survey_routes.route('/api/survey-averages', methods=['GET'])
+def get_survey_averages():
+    db = SessionLocal()
+    try:
+        # Define which columns are negative sentiment (to be multiplied by -1)
+        negative_sentiment_columns = [
+            'isolated_school_ans',
+            'criticise_school_ans',
+            'bullying_ans',
+            'nervous_ans',
+            'hopeless_ans',
+            'restless_ans',
+            'depressed_ans',
+            'worthless_ans',
+            'intelligence2_ans',
+            'man_violence_opinion',
+            'man_sexual_opinion',
+            'gay_man_opinion',
+            'men_better_stem_ans'
+        ]
+        
+        # Get average of all survey response columns using func.avg()
+        result = db.query(
+            # School experience questions
+            func.avg(SurveyResponse.comfortability_ans).label('comfortability_ans'),
+            func.avg(SurveyResponse.isolated_school_ans).label('isolated_school_ans'),
+            func.avg(SurveyResponse.criticise_school_ans).label('criticise_school_ans'),
+            func.avg(SurveyResponse.opinion_school_ans).label('opinion_school_ans'),
+            func.avg(SurveyResponse.bullying_ans).label('bullying_ans'),
+            func.avg(SurveyResponse.future_ans).label('future_ans'),
+            func.avg(SurveyResponse.covid_ans).label('covid_ans'),    
+
+            # Wellbeing questions
+            func.avg(SurveyResponse.how_happy_ans).label('how_happy_ans'),
+            func.avg(SurveyResponse.nervous_ans).label('nervous_ans'),
+            func.avg(SurveyResponse.hopeless_ans).label('hopeless_ans'),
+            func.avg(SurveyResponse.restless_ans).label('restless_ans'),
+            func.avg(SurveyResponse.depressed_ans).label('depressed_ans'),
+            func.avg(SurveyResponse.effort_ans).label('effort_ans'),
+            func.avg(SurveyResponse.worthless_ans).label('worthless_ans'),
+            
+            # Growth mindset questions
+            func.avg(SurveyResponse.intelligence1_ans).label('intelligence1_ans'),
+            func.avg(SurveyResponse.intelligence2_ans).label('intelligence2_ans'),
+
+            # Gender norms questions
+            func.avg(SurveyResponse.man_chores_opinion).label('man_chores_opinion'),
+            func.avg(SurveyResponse.man_violence_opinion).label('man_violence_opinion'),
+            func.avg(SurveyResponse.man_sexual_opinion).label('man_sexual_opinion'),
+            func.avg(SurveyResponse.man_fears_opinion).label('man_fears_opinion'),
+            func.avg(SurveyResponse.gay_man_opinion).label('gay_man_opinion'),
+            
+            # Social attitude questions
+            func.avg(SurveyResponse.soft_sport_boys_ans).label('soft_sport_boys_ans'),
+            func.avg(SurveyResponse.gender_diff_ans).label('gender_diff_ans'),
+            func.avg(SurveyResponse.nerds_ans).label('nerds_ans'),
+            func.avg(SurveyResponse.men_better_stem_ans).label('men_better_stem_ans')
+        ).first()
+        
+        # Convert to dictionary and handle None values
+        averages = {k: v if v is not None else 0 for k, v in result._asdict().items()}
+        
+        # Create mapping of column names to display labels
+        label_mapping = {
+            'comfortability_ans': 'School Comfort',
+            'isolated_school_ans': 'School Isolation',
+            'criticise_school_ans': 'School Criticism',
+            'opinion_school_ans': 'School Opinion Voice',
+            'bullying_ans': 'Bullying Experience',
+            'future_ans': 'Future Outlook',
+            'covid_ans': 'COVID Impact',
+            'how_happy_ans': 'Happiness',
+            'nervous_ans': 'Nervousness',
+            'hopeless_ans': 'Hopelessness',
+            'restless_ans': 'Restlessness',
+            'depressed_ans': 'Depression',
+            'effort_ans': 'Life Effort',
+            'worthless_ans': 'Worthlessness',
+            'intelligence1_ans': 'Intelligence Fixed Mindset',
+            'intelligence2_ans': 'Intelligence Growth Mindset',
+            'man_chores_opinion': 'Men in Chores Opinion',
+            'man_violence_opinion': 'Men & Violence Opinion',
+            'man_sexual_opinion': 'Men & Sexuality Opinion',
+            'man_fears_opinion': 'Men Expressing Fears',
+            'gay_man_opinion': 'Gay Men Opinion',
+            'soft_sport_boys_ans': 'Soft Sports for Boys',
+            'gender_diff_ans': 'Gender Differences',
+            'nerds_ans': 'Nerds Perception',
+            'men_better_stem_ans': 'Men Better at STEM'
+        }
+        
+        # Transform into final response format
+        response_data = []
+        for col_name, avg_value in averages.items():
+            if col_name in label_mapping:
+                value = float(avg_value)
+                if col_name in negative_sentiment_columns:
+                    value *= -1
+                
+                response_data.append({
+                    "label": label_mapping[col_name],
+                    "value": round(value, 1)
+                })
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
