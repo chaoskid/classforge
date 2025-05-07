@@ -18,7 +18,7 @@ import StudentNetworkGraph from '../components/StudentNetworkGraph';
 import { CircularProgressbarWithChildren, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import StudentRadarChart from '../components/StudentRadarChart';
-
+import AcademicScoreChart from '../components/AcademicScoreChart';
 
 
 const StudentDashboard = () => {
@@ -147,6 +147,15 @@ const StudentDashboard = () => {
           />
         </Box>
        )}
+       {studentDetails?.student?.academic_score && (
+          <Box mt={10}>
+             <Heading size="md" mb={4}>Academic Score vs Class Average</Heading>
+             <AcademicScoreChart
+                  yourScore={studentDetails.student.academic_score}
+                  classAvg={studentDetails.student.class_average_score}
+           />
+       </Box>
+      )}
     </Box>
   </SimpleGrid>
 )}

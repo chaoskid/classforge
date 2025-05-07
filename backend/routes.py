@@ -200,6 +200,12 @@ def get_student_info():
         # Class allocation
         allocation = db.query(Allocations).filter_by(student_id=student_id).first()
         class_id = allocation.class_id if allocation else None
+        class_avg_score = None
+        if class_id is not None:
+            class_avg_score = db.query(func.avg(Students.academic_score))\
+                        .join(Allocations, Students.student_id == Allocations.student_id)\
+                        .filter(Allocations.class_id == class_id)\
+                        .scalar()
 
         classmate_ids = []
         if class_id is not None:
@@ -224,8 +230,10 @@ def get_student_info():
                 "email": student.email,
                 "house": student.house,
                 "class_id": class_id,
-                "scores":student_scores
-                
+                "scores":student_scores,
+                "academic_score": student.academic_score,
+                "class_average_score": class_avg_score
+
 
             },
             "clubs": club_names or ["No clubs joined"],
