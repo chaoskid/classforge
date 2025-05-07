@@ -1,209 +1,139 @@
 // src/pages/Allocations.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Container,
   Heading,
   SimpleGrid,
   Divider,
-  Button,
-  VStack,
-  HStack,
+  Stat,
+  StatLabel,
+  StatNumber,
+  Icon,
+  Spinner,
 } from '@chakra-ui/react';
-import { Line } from 'react-chartjs-2';
+import { Pie, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
-  Title,
+  BarElement,
+  ArcElement,
   Tooltip,
   Legend,
 } from 'chart.js';
-
+import { FaUserGraduate } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import axios from '../pages/axiosConfig';
-import { useNavigate } from 'react-router-dom';
 
-// Register Chart.js modules
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
-  Title,
+  BarElement,
+  ArcElement,
   Tooltip,
   Legend
 );
 
-// Empty graph data
-const emptyGraphData = {
-  labels: [''],
-  datasets: [
-    {
-      label: 'Empty Data',
-      data: [0],
-      borderColor: 'rgba(75, 192, 192, 1)',
-      backgroundColor: 'rgba(75, 192, 192, 0.2)',
-    },
-  ],
-};
+const StatCard = ({ label, value }) => (
+  <Box
+    p={6}
+    borderWidth="1px"
+    borderRadius="lg"
+    boxShadow="md"
+    bg="white"
+    textAlign="center"
+  >
+    <Icon as={FaUserGraduate} w={10} h={10} color="blue.500" mb={2} />
+    <Stat>
+      <StatLabel fontSize="lg">{label}</StatLabel>
+      <StatNumber fontSize="3xl" color="blue.700">{value}</StatNumber>
+    </Stat>
+  </Box>
+);
 
-const emptyGraphOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: false },
-    title: { display: false },
-  },
-  scales: {
-    x: { display: false },
-    y: { display: false },
-  },
-};
-
-// Graph Card Component
-const GraphCard = ({ title, data }) => (
+const BarChartCard = ({ title, data }) => (
   <Box
     p={4}
     borderWidth="1px"
     borderRadius="lg"
     boxShadow="md"
+    bg="white"
     height="300px"
-    display="flex"
-    flexDirection="column"
-    justifyContent="space-between"
   >
-    <Box flex="1" position="relative">
-      <Line
-        data={data?.labels ? data : emptyGraphData}
-        options={emptyGraphOptions}
-        style={{ height: '100%' }}
-      />
-    </Box>
-    <Heading size="sm" mt={2} textAlign="center">
-      {title}
-    </Heading>
+    <Heading size="sm" mb={2} textAlign="center">{title}</Heading>
+    <Bar data={data} options={{ responsive: true, plugins: { legend: { position: 'top' }}}} />
   </Box>
 );
 
-const Allocations = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = React.useState(false);
+const PieChartCard = ({ title, data }) => (
+  <Box
+    p={4}
+    borderWidth="1px"
+    borderRadius="lg"
+    boxShadow="md"
+    bg="white"
+    height="300px"
+  >
+    <Heading size="sm" mb={2} textAlign="center">{title}</Heading>
+    <Pie data={data} options={{ responsive: true, plugins: { legend: { position: 'bottom' }}}} />
+  </Box>
+);
 
-  const [graphData, setGraphData] = React.useState({
-    graph1: {},
-    graph2: {},
-    graph3: {},
-    graph4: {},
-    graph5: {},
-  });
+const TeacherDashboard = () => {
+  const [stats, setStats] = useState([]);
+  const [graph2Data, setGraph2Data] = useState(null);
+  const [graph3Data, setGraph3Data] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch Graph Data once component mounts
-  React.useEffect(() => {
-    const fetchGraphs = async () => {
+  useEffect(() => {
+    const fetchData = async () => {
       try {
-        const [res1, res2, res3, res4, res5] = await Promise.all([
+        const [res1, res2, res3] = await Promise.all([
           axios.get('/api/graph1'),
           axios.get('/api/graph2'),
-          axios.get('/api/graph3'),
-          axios.get('/api/graph4'),
-          axios.get('/api/graph5'),
+          axios.get('/api/graph3')
         ]);
+        setStats(res1.data);
+        setGraph2Data(res2.data);
 
-        setGraphData({
-          graph1: res1.data,
-          graph2: res2.data,
-          graph3: res3.data,
-          graph4: res4.data,
-          graph5: res5.data,
-        });
+        const pieData = {
+          labels: res3.data.labels,
+          datasets: [
+            {
+              label: res3.data.datasets[0].label,
+              data: res3.data.datasets[0].data,
+              backgroundColor: res3.data.datasets[0].backgroundColor
+            }
+          ]
+        };
+        setGraph3Data(pieData);
       } catch (err) {
-        console.error('Failed to fetch graph data:', err);
+        console.error('Error loading graphs', err);
+      } finally {
+        setLoading(false);
       }
     };
-
-    fetchGraphs();
+    fetchData();
   }, []);
-
-  const handleAllocate = async () => {
-    setLoading(true);
-    try {
-      // → Axios GET to /api/allocate
-      const { data } = await axios.get('/api/allocate');
-      // data is { allocation_summary: [...], message: "..." }
-      navigate('/allocation-results', { state: data });
-    } catch (err) {
-      console.error(err);
-      alert('Error allocating students. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAllocateClick = () => {
-    navigate('/allocation-settings');
-  };
-
-  const handleInProgress = (section) => alert(`${section} page is in progress`);
 
   return (
     <>
       <Navbar />
       <Box bg="gray.100" minH="100vh" py={10}>
         <Container maxW="6xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
-
-          {/* Visualization Section */}
           <Heading size="lg" mb={6}>Visualizations</Heading>
-          <SimpleGrid columns={[1, 2, 3]} spacing={6} mb={12}>
-            <GraphCard title="Visualization 1" data={graphData.graph1} />
-            <GraphCard title="Visualization 2" data={graphData.graph2} />
-            <GraphCard title="Visualization 3" data={graphData.graph3} />
-            <GraphCard title="Visualization 4" data={graphData.graph4} />
-            <GraphCard title="Visualization 5" data={graphData.graph5} />
-          </SimpleGrid>
-
-          {/* Allocations Section */}
-          <Heading size="lg" mb={4}>Allocations</Heading>
-          <Divider mb={6} />
-          <SimpleGrid columns={[1, 2, 4]} spacing={6} mb={10}>
-            <Button colorScheme="blue" onClick={handleAllocateClick} isLoading={loading}>
-              Allocate Students
-            </Button>
-            <Button colorScheme="blue" onClick={() => handleInProgress('Manual Override')}>
-              Manual Override
-            </Button>
-            <Button colorScheme="blue" onClick={() => handleInProgress('Reallocation Pool')}>
-              Re-allocation Pool
-            </Button>
-            <Button colorScheme="blue" onClick={() => handleInProgress('Feedback')}>
-              Feedback
-            </Button>
-          </SimpleGrid>
-
-          {/* Students Options */}
-          <Heading size="md" mb={2}>Students Options</Heading>
-          <Divider mb={4} />
-          <HStack spacing={6} mb={10}>
-            <Button colorScheme="purple" onClick={() => handleInProgress('View Students')}>
-              View Students
-            </Button>
-          </HStack>
-
-          {/* Classes Options */}
-          <Heading size="md" mb={2}>Classes Options</Heading>
-          <Divider mb={4} />
-          <HStack spacing={6}>
-            <Button colorScheme="teal" onClick={() => navigate('/class-visualizations')}>
-              View Classes
-            </Button>
-            <Button colorScheme="teal" onClick={() => handleInProgress('Allocation Summary (click Allocate Students to see the summary)')}>
-              Allocation Summary
-            </Button>
-          </HStack>
-
+          {loading ? <Spinner size="xl" /> : (
+            <SimpleGrid columns={[1, 2, 2]} spacing={6} mb={12}>
+              {stats.map((stat, i) => (
+                <StatCard key={i} label={stat.label} value={stat.value} />
+              ))}
+              {graph2Data && <BarChartCard title="Visualization 2: Average Scores" data={graph2Data} />}
+              {graph3Data && <PieChartCard title="Visualization 3: Relationship Distribution" data={graph3Data} />}
+            </SimpleGrid>
+          )}
+          <Divider />
         </Container>
       </Box>
       <Footer />
@@ -211,4 +141,4 @@ const Allocations = () => {
   );
 };
 
-export default Allocations;
+export default TeacherDashboard;
