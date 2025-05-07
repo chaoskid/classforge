@@ -10,52 +10,43 @@ from model.dqn.allocation_env import precompute_link_matrices
 
 def print_link_summary(env, E):
     """
-    Prints per‐class existing link counts (only for labels 0–5) in CSV format.
-
-    Args:
-      env: your allocation environment, with:
-        - env.num_classes
-        - env.state[cls_idx]['student_indices']  (list of student indices)
-      E:   (N x N) numpy array of integer edge‐labels.
-           Valid labels: 0=friends, 1=influential, 2=feedback, 3=more_time,
-                         4=advice, 5=disrespect
-           Any other value (e.g. -1 or >5) will be ignored.
+    Prints per-class existing and predicted link counts in CSV format.
     """
-    # define your labels
     edge_types = {
-        'friends'    : 0,
-        'influential': 1,
-        'feedback'   : 2,
-        'more_time'  : 3,
-        'advice'     : 4,
-        'disrespect' : 5
-    }
-    # reverse lookup
+    'friends'    : 0,
+    'influential': 1,
+    'feedback'   : 2,
+    'more_time'  : 3,
+    'advice'     : 4,
+    'disrespect' : 5
+}
+    # invert edge_types so we can go from integer → string
     rev = {v: k for k, v in edge_types.items()}
-    labels = [rev[i] for i in range(len(edge_types))]
+    n_labels = len(edge_types)
 
-    # CSV header
-    print("Class," + ",".join(labels))
+    # Prepare the ordered list of label names by their integer code
+    labels_by_int = [rev[i] for i in range(n_labels)]
 
-    # for each class
+    # EXISTING LINKS
+    print("\n------------ Existing Links (CSV Format):")
+    # header
+    header = "Class," + ",".join(f"existing_label_{i}" for i in range(n_labels))
+    print(header)
+    # rows
     for cls_idx in range(env.num_classes):
-        counts = {lbl: 0 for lbl in labels}
         members = env.state[cls_idx]['student_indices']
-
-        # count edges among members
+        # count existing labels
+        existing_counts = {lbl: 0 for lbl in labels_by_int}
         for i in members:
             for j in members:
-                if i == j:
+                if i == j: 
                     continue
-                val = int(E[i, j])
-                # only count if it's one of our six labels
-                if val in rev:
-                    counts[rev[val]] += 1
+                lbl = int(E[i, j])
+                existing_counts[ rev.get(lbl, 'no_link') ] += 1
 
-        # print CSV row
-        row = ",".join(str(counts[lbl]) for lbl in labels)
-        print(f"{cls_idx},{row}")
-
+        # build CSV row in order 0..n_labels-1
+        row = [ str(existing_counts[ labels_by_int[i] ]) for i in range(n_labels) ]
+        print(f"{cls_idx}," + ",".join(row))
 
 def build_allocation_summary(env, target_feature_avgs, unit_id,E):
     """
@@ -65,22 +56,28 @@ def build_allocation_summary(env, target_feature_avgs, unit_id,E):
     summary = []
     # first get the link counts from your utility
     # but here we re-compute them into dicts:
-    friends, influence, feedback, more_time, advice, disrespect = ([] for _ in range(6))
+    friends, influence, feedback, more_time, advice, disrespect, no_link = ([] for _ in range(7))
     # reuse the same logic from print_link_summary but accumulating into lists per class
     edge_types = {'friends':0,'influence':1,'feedback':2,'more_time':3,
-                  'advice':4,'disrespect':5, 'no_link':-1}
+                  'advice':4,'disrespect':5,'no_link':6}
     rev = {v:k for k,v in edge_types.items()}
     # precompute both existing and predicted per class into two lists of dicts
     existing_counts_list = []
+    predicted_counts_list = []
     for cls_idx in range(env.num_classes):
         members = env.state[cls_idx]['student_indices']
         exc = {lbl:0 for lbl in edge_types}
+        pdc = {lbl:0 for lbl in edge_types}
         for i in members:
             for j in members:
                 if i==j: continue
                 lbl = int(E[i,j])
                 exc[rev[lbl]] += 1
+                if lbl==edge_types['no_link']:
+                    pl = int(P[i,j])
+                    pdc[rev[pl]] += 1
         existing_counts_list.append(exc)
+        predicted_counts_list.append(pdc)
 
     # now build per-class rows
     for i, tgt in enumerate(target_feature_avgs):
@@ -134,8 +131,7 @@ def train_and_allocate(unit_id,num_classes,
                        student_data,
                        E,
                        num_episodes=250,
-                       batch_size=32,
-                       model_path=None):
+                       batch_size=32):
     
     feature_dim = student_data.shape[1]
     state_dim = num_classes * (feature_dim + 1)
@@ -170,6 +166,7 @@ def train_and_allocate(unit_id,num_classes,
                 print(f"Episode {ep+1}: Total Reward = {total_reward:.2f}, Epsilon = {agent.epsilon:.3f}")
     print(f"\n---------------- Training completed after {num_episodes} episodes.")
     # Save the trained model for inference
+    model_path = f"model/dqn/d7.pth"
     torch.save(agent.model.state_dict(), model_path)
     print(f"\n---------------- Model saved to {model_path} for later inference.")
     print(f"---------------- Allocating with the saved model: ")
@@ -178,7 +175,7 @@ def train_and_allocate(unit_id,num_classes,
     return allocation_summary
 
 def returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
-                      model_path):
+                      model_path='model/dqn/d7.pth'):
     """
     Initializes the environment & loads a pretrained agent for inference.
 
@@ -187,7 +184,7 @@ def returnEnvAndAgent(student_data, num_classes, target_class_size, target_featu
       agent-- a DQNAgent with loaded weights and epsilon=0
     """
     feature_dim = student_data.shape[1]
-    state_dim = num_classes * (2 + 2*feature_dim)
+    state_dim = num_classes * (feature_dim + 1)
     action_dim = num_classes
 
     # 1) Build environment
@@ -232,7 +229,7 @@ def printSummary(env, target_feature_avgs):
         )
 
 
-def allocate_with_existing_model(student_data, env, agent, unit_id,E,target_class_size,target_feature_avgs):
+def allocate_with_existing_model(student_data, env, agent, unit_id,E):
     """
     Runs a single allocation pass with a loaded agent.
 
@@ -249,10 +246,7 @@ def allocate_with_existing_model(student_data, env, agent, unit_id,E,target_clas
     random.shuffle(idxs)
     for idx in idxs:
         feats = student_data[idx]
-        s = state_to_vector(env.state,
-                    feature_dim,
-                    target_class_size,
-                    target_feature_avgs)
+        s = state_to_vector(env.state, feature_dim)
         a = agent.act(s)
         allocations.append(a)
         env.step(feats, a, idx)

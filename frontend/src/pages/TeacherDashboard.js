@@ -143,12 +143,6 @@ const Allocations = () => {
     }
   };
 
-  const handleAllocateClick = () => {
-    navigate('/allocation-settings');
-  };
-  const handleManualOverride = () => {
-    navigate('/manual-override');
-  };
   const handleInProgress = (section) => alert(`${section} page is in progress`);
 
   return (
@@ -171,10 +165,10 @@ const Allocations = () => {
           <Heading size="lg" mb={4}>Allocations</Heading>
           <Divider mb={6} />
           <SimpleGrid columns={[1, 2, 4]} spacing={6} mb={10}>
-            <Button colorScheme="blue" onClick={handleAllocateClick} isLoading={loading}>
+            <Button colorScheme="blue" onClick={handleAllocate} isLoading={loading}>
               Allocate Students
             </Button>
-            <Button colorScheme="blue" onClick={handleManualOverride}>
+            <Button colorScheme="blue" onClick={() => handleInProgress('Manual Override')}>
               Manual Override
             </Button>
             <Button colorScheme="blue" onClick={() => handleInProgress('Reallocation Pool')}>
@@ -198,7 +192,7 @@ const Allocations = () => {
           <Heading size="md" mb={2}>Classes Options</Heading>
           <Divider mb={4} />
           <HStack spacing={6}>
-            <Button colorScheme="teal" onClick={() => navigate('/class-visualizations')}>
+            <Button colorScheme="teal" onClick={() => handleInProgress('View Classes')}>
               View Classes
             </Button>
             <Button colorScheme="teal" onClick={() => handleInProgress('Allocation Summary (click Allocate Students to see the summary)')}>
