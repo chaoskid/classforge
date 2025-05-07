@@ -146,7 +146,9 @@ const Allocations = () => {
   const handleAllocateClick = () => {
     navigate('/allocation-settings');
   };
-
+  const handleManualOverride = () => {
+    navigate('/manual-override');
+  };
   const handleInProgress = (section) => alert(`${section} page is in progress`);
 
   return (
@@ -172,7 +174,7 @@ const Allocations = () => {
             <Button colorScheme="blue" onClick={handleAllocateClick} isLoading={loading}>
               Allocate Students
             </Button>
-            <Button colorScheme="blue" onClick={() => handleInProgress('Manual Override')}>
+            <Button colorScheme="blue" onClick={handleManualOverride}>
               Manual Override
             </Button>
             <Button colorScheme="blue" onClick={() => handleInProgress('Reallocation Pool')}>
