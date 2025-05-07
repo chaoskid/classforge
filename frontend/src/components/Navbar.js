@@ -60,15 +60,6 @@ const Navbar = () => {
               variant="ghost"
               color="white"
               _hover={{ bg: 'blue.700' }}
-              onClick={() => alert('Profile page coming soon!')}
-            >
-              Profile
-            </Button>
-
-            <Button
-              variant="ghost"
-              color="white"
-              _hover={{ bg: 'blue.700' }}
               onClick={handleLogout}
             >
               Log out

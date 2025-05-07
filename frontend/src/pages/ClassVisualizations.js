@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
+  Button,
   Container,
   Heading,
   Select,
@@ -15,6 +16,7 @@ import {
 } from '@chakra-ui/react';
 import axios from './axiosConfig';
 import Navbar from '../components/Navbar';
+import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import ForceGraph2D from 'react-force-graph-2d';
 import {
@@ -52,6 +54,7 @@ const ClassVisualizations = () => {
   const [networkClass, setNetworkClass] = useState(null);
   const [relFilter, setRelFilter] = useState('');
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+  const navigate = useNavigate();
 
   // Load all classes once
   useEffect(() => {
@@ -116,6 +119,11 @@ const ClassVisualizations = () => {
       <Navbar />
       <Box bg='gray.100' py={10} minH='100vh'>
         <Container maxW='6xl' bg='white' p={8} borderRadius='lg' boxShadow='lg'>
+          <Button colorScheme="blue" onClick={() => navigate(-1)}>
+                          Back
+                        </Button>
+                  
+                <Box minH="3vh"></Box>
           <Heading mb={6}>Class Visualizations</Heading>
           <SimpleGrid columns={[1,2]} spacing={8}>
 

@@ -78,16 +78,31 @@ def get_students():
 def get_clubs():
     db = SessionLocal()
     try:
+        # Fetch all clubs
         clubs = db.query(Clubs).all()
+
+        # Count students per club from Affiliations
+        counts = (
+            db.query(Affiliations.club_id, func.count(Affiliations.student_id))
+            .group_by(Affiliations.club_id)
+            .all()
+        )
+        club_count_map = {club_id: count for club_id, count in counts}
+
         result = [{
             'club_id': c.club_id,
-            'club_name': c.club_name
+            'club_name': c.club_name,
+            'student_count': club_count_map.get(c.club_id, 0)
         } for c in clubs]
+
         return jsonify(result), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     finally:
         db.close()
+
 
 @survey_routes.route('/api/login', methods=['OPTIONS','POST'])
 def login():
@@ -183,7 +198,34 @@ def get_student_info():
         unit_names = db.query(Unit.unit_name).filter(Unit.unit_id.in_(unit_ids)).all()
         unit_names = [u[0] for u in unit_names]
         print(unit_names)
+        scores = db.query(CalculatedScores).filter_by(student_id=student_id).first()
+        if scores:
+            student_scores= {
+                "academic_engagement_score": scores.academic_engagement_score,
+                "academic_wellbeing_score": scores.academic_wellbeing_score,
+                "mental_health_score": scores.mental_health_score,
+                "growth_mindset_score": scores.growth_mindset_score,
+                "gender_norm_score": scores.gender_norm_score,
+                "social_attitude_score": scores.social_attitude_score,
+                "school_environment_score": scores.school_environment_score,
+            }
+        else:
+            student_scores={}
 
+        # Class allocation
+        allocation = db.query(Allocations).filter_by(student_id=student_id).first()
+        class_id = allocation.class_id if allocation else None
+        class_avg_score = None
+        if class_id is not None:
+            class_avg_score = db.query(func.avg(Students.academic_score))\
+                        .join(Allocations, Students.student_id == Allocations.student_id)\
+                        .filter(Allocations.class_id == class_id)\
+                        .scalar()
+
+        classmate_ids = []
+        if class_id is not None:
+            classmate_rows = db.query(Allocations.student_id).filter_by(class_id=class_id).all()
+            classmate_ids = [r[0] for r in classmate_rows if r[0] != student_id]
         # Relationships with name and email
         relationships = db.query(Relationships).filter_by(source=student_id).all()
         detailed_relationships = []
@@ -193,6 +235,7 @@ def get_student_info():
                 detailed_relationships.append({
                     "target_name": f"{target_student.first_name} {target_student.last_name}",
                     "target_email": target_student.email,
+                    "target": target_student.student_id,  # ✅ Required for matching
                     "link_type": r.link_type
                 })
 
@@ -200,11 +243,18 @@ def get_student_info():
             "student": {
                 "name": f"{student.first_name} {student.last_name}",
                 "email": student.email,
-                "house": student.house
+                "house": student.house,
+                "class_id": class_id,
+                "scores":student_scores,
+                "academic_score": student.academic_score,
+                "class_average_score": class_avg_score
+
+
             },
             "clubs": club_names or ["No clubs joined"],
             "units": unit_names or ["No units enrolled"],
-            "relationships": detailed_relationships
+            "relationships": detailed_relationships,
+            "classmates": classmate_ids
         }
 
         return jsonify(result), 200
@@ -289,7 +339,7 @@ def allocate():
             env, agent = returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
                       model_path='model/dqn/d7.pth')
         
-            allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E)
+            allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E,target_class_size,target_feature_avgs)
         
             save_allocation_summary(unit_id, allocation_summary, db)
             upserted = save_allocations(db, env, id_map, unit_id)
@@ -441,3 +491,166 @@ def get_survey_averages():
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
+    
+
+@teacher_login_required
+@survey_routes.route('/api/students-and-classes', methods=['GET'])
+def get_students_and_other_classes():
+    """
+    Returns:
+      - students: list of { student_id, name }
+      - classes:  list of { class_id, class_label } excluding the student's current class
+    """
+    db = SessionLocal()
+    try:
+        # 1) Determine current student and their allocation
+        student_id = session.get('user_id')
+        alloc = db.query(Allocations).filter_by(student_id=student_id).first()
+        current_class = alloc.class_id if alloc else None
+        unit_id = alloc.unit_id if alloc else None
+
+        # 2) Fetch all students
+        students = db.query(
+            Students.student_id,
+            Students.first_name,
+            Students.last_name
+        ).all()
+        students_list = [
+            {"student_id": sid, "name": f"{fn} {ln}"}
+            for sid, fn, ln in students
+        ]
+
+        # 3) Fetch all classes in the same unit (or globally if no unit)
+        q = db.query(
+            AllocationsSummary.class_id,
+            AllocationsSummary.class_label
+        )
+        if unit_id is not None:
+            q = q.filter_by(unit_id=unit_id)
+        classes = q.all()
+
+        # 4) Exclude the current class
+        classes_list = [
+            {"class_id": cid, "class_label": label}
+            for cid, label in classes
+            if cid != current_class
+        ]
+
+        return jsonify({
+            "students": students_list,
+            "classes":  classes_list
+        }), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@teacher_login_required
+@survey_routes.route('/api/simulate-allocation', methods=['POST'])
+def simulate_allocation():
+    data = request.get_json() or {}
+    student_id = data.get('student_id')
+    target_class = data.get('class_id')
+
+    if student_id is None or target_class is None:
+        return jsonify({"error": "Both student_id and class_id are required"}), 400
+
+    db = SessionLocal()
+    try:
+        # — Features/Averages Simulation (same as before) —
+        student = db.query(CalculatedScores).filter_by(student_id=student_id).first()
+        if not student:
+            return jsonify({"error": f"Student {student_id} not found"}), 404
+
+        summary = db.query(AllocationsSummary).filter_by(class_id=target_class).first()
+        if not summary:
+            return jsonify({"error": f"Class {target_class} not found"}), 404
+
+        base_fields   = [
+            'academic_engagement_score',
+            'academic_wellbeing_score',
+            'mental_health_score',
+            'growth_mindset_score',
+            'gender_norm_score',
+            'social_attitude_score',
+            'school_environment_score'
+        ]
+        current_count = summary.student_count or 0
+
+        original_avgs = {}
+        new_avgs      = {}
+        for field in base_fields:
+            alloc_col   = f"alloc_{field}"
+            class_avg   = float(getattr(summary, alloc_col))
+            student_val = float(getattr(student, field))
+            new_avg     = (class_avg * current_count + student_val) / (current_count + 1)
+            original_avgs[field] = class_avg
+            new_avgs[field]      = new_avg
+
+        # — Relationship summary (same as before) —
+        alloc_rec     = db.query(Allocations).filter_by(student_id=student_id).first()
+        current_class = alloc_rec.class_id if alloc_rec else None
+
+        rel_rows      = db.query(Relationships).filter_by(source=student_id).all()
+        rel_types     = ['friends','influential','feedback','more_time','advice','disrespect']
+        relationship_summary = {}
+
+        for rel_type in rel_types:
+            targets    = [r.target for r in rel_rows if r.link_type == rel_type]
+            total_ct   = len(targets)
+            curr_ct    = db.query(Allocations).filter(
+                            Allocations.student_id.in_(targets),
+                            Allocations.class_id == current_class
+                        ).count() if current_class else 0
+            new_ct     = db.query(Allocations).filter(
+                            Allocations.student_id.in_(targets),
+                            Allocations.class_id == target_class
+                        ).count() if targets else 0
+
+            relationship_summary[rel_type] = {
+                "total":         total_ct,
+                "current_class": curr_ct,
+                "target_class":  new_ct,
+                "difference":    new_ct - curr_ct
+            }
+
+        # — Build graph data for frontend —
+        # 1) All members of the target class
+        member_ids = [row[0] for row in db.query(Allocations.student_id)
+                                     .filter_by(class_id=target_class).all()]
+        students   = db.query(Students).filter(Students.student_id.in_(member_ids)).all()
+        nodes = [
+            {"id": s.student_id, "label": f"{s.first_name} {s.last_name}"}
+            for s in students
+        ]
+
+        # 2) Only this student's reported links within that class
+        links = [
+            {"source": student_id, "target": r.target, "link_type": r.link_type}
+            for r in rel_rows
+            if r.target in member_ids
+        ]
+
+        # — Final Response —
+        return jsonify({
+            "student_id":            student_id,
+            "class_id":              target_class,
+            "original_count":        current_count,
+            "new_count":             current_count + 1,
+            "original_averages":     original_avgs,
+            "new_averages":          new_avgs,
+            "relationship_summary":  relationship_summary,
+            "nodes":                 nodes,
+            "links":                 links
+        }), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        db.close()
+    
