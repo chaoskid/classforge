@@ -78,16 +78,31 @@ def get_students():
 def get_clubs():
     db = SessionLocal()
     try:
+        # Fetch all clubs
         clubs = db.query(Clubs).all()
+
+        # Count students per club from Affiliations
+        counts = (
+            db.query(Affiliations.club_id, func.count(Affiliations.student_id))
+            .group_by(Affiliations.club_id)
+            .all()
+        )
+        club_count_map = {club_id: count for club_id, count in counts}
+
         result = [{
             'club_id': c.club_id,
-            'club_name': c.club_name
+            'club_name': c.club_name,
+            'student_count': club_count_map.get(c.club_id, 0)
         } for c in clubs]
+
         return jsonify(result), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     finally:
         db.close()
+
 
 @survey_routes.route('/api/login', methods=['OPTIONS','POST'])
 def login():
@@ -183,7 +198,34 @@ def get_student_info():
         unit_names = db.query(Unit.unit_name).filter(Unit.unit_id.in_(unit_ids)).all()
         unit_names = [u[0] for u in unit_names]
         print(unit_names)
+        scores = db.query(CalculatedScores).filter_by(student_id=student_id).first()
+        if scores:
+            student_scores= {
+                "academic_engagement_score": scores.academic_engagement_score,
+                "academic_wellbeing_score": scores.academic_wellbeing_score,
+                "mental_health_score": scores.mental_health_score,
+                "growth_mindset_score": scores.growth_mindset_score,
+                "gender_norm_score": scores.gender_norm_score,
+                "social_attitude_score": scores.social_attitude_score,
+                "school_environment_score": scores.school_environment_score,
+            }
+        else:
+            student_scores={}
 
+        # Class allocation
+        allocation = db.query(Allocations).filter_by(student_id=student_id).first()
+        class_id = allocation.class_id if allocation else None
+        class_avg_score = None
+        if class_id is not None:
+            class_avg_score = db.query(func.avg(Students.academic_score))\
+                        .join(Allocations, Students.student_id == Allocations.student_id)\
+                        .filter(Allocations.class_id == class_id)\
+                        .scalar()
+
+        classmate_ids = []
+        if class_id is not None:
+            classmate_rows = db.query(Allocations.student_id).filter_by(class_id=class_id).all()
+            classmate_ids = [r[0] for r in classmate_rows if r[0] != student_id]
         # Relationships with name and email
         relationships = db.query(Relationships).filter_by(source=student_id).all()
         detailed_relationships = []
@@ -193,6 +235,7 @@ def get_student_info():
                 detailed_relationships.append({
                     "target_name": f"{target_student.first_name} {target_student.last_name}",
                     "target_email": target_student.email,
+                    "target": target_student.student_id,  # ✅ Required for matching
                     "link_type": r.link_type
                 })
 
@@ -200,11 +243,18 @@ def get_student_info():
             "student": {
                 "name": f"{student.first_name} {student.last_name}",
                 "email": student.email,
-                "house": student.house
+                "house": student.house,
+                "class_id": class_id,
+                "scores":student_scores,
+                "academic_score": student.academic_score,
+                "class_average_score": class_avg_score
+
+
             },
             "clubs": club_names or ["No clubs joined"],
             "units": unit_names or ["No units enrolled"],
-            "relationships": detailed_relationships
+            "relationships": detailed_relationships,
+            "classmates": classmate_ids
         }
 
         return jsonify(result), 200
