@@ -78,16 +78,31 @@ def get_students():
 def get_clubs():
     db = SessionLocal()
     try:
+        # Fetch all clubs
         clubs = db.query(Clubs).all()
+
+        # Count students per club from Affiliations
+        counts = (
+            db.query(Affiliations.club_id, func.count(Affiliations.student_id))
+            .group_by(Affiliations.club_id)
+            .all()
+        )
+        club_count_map = {club_id: count for club_id, count in counts}
+
         result = [{
             'club_id': c.club_id,
-            'club_name': c.club_name
+            'club_name': c.club_name,
+            'student_count': club_count_map.get(c.club_id, 0)
         } for c in clubs]
+
         return jsonify(result), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     finally:
         db.close()
+
 
 @survey_routes.route('/api/login', methods=['OPTIONS','POST'])
 def login():

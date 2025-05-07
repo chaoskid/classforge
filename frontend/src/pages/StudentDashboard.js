@@ -19,6 +19,8 @@ import { CircularProgressbarWithChildren, buildStyles } from 'react-circular-pro
 import 'react-circular-progressbar/dist/styles.css';
 import StudentRadarChart from '../components/StudentRadarChart';
 import AcademicScoreChart from '../components/AcademicScoreChart';
+import ClubParticipationDonut from '../components/ClubParticipationDonut';
+
 
 
 const StudentDashboard = () => {
@@ -26,6 +28,9 @@ const StudentDashboard = () => {
   const [responses, setResponses] = useState({});
   const [studentDetails, setStudentDetails] = useState({});
   const [retention, setRetention] = useState(0);
+  const [allClubs, setAllClubs] = useState([]);
+  const [popularClubs, setPopularClubs] = useState([]);
+
 
   useEffect(() => {
     axios.get('/api/student-survey-responses', { withCredentials: true })
@@ -42,6 +47,32 @@ const StudentDashboard = () => {
       }
     }).catch(err => console.error(err));
   }, []);
+
+  useEffect(() => {
+    axios.get('/api/clubs', { withCredentials: true })
+      .then(res => {
+        const all = res.data || [];
+        setAllClubs(all);
+  
+        // Frequency map to count club popularity
+        const clubCount = {};
+        all.forEach(club => {
+          clubCount[club.club_name] = (clubCount[club.club_name] || 0) + 1;
+        });
+  
+        // Sort by frequency and get top 5
+        const sorted = Object.entries(clubCount)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(entry => entry[0]);
+  
+        setPopularClubs(sorted);
+      })
+      .catch(err => console.error(err));
+  }, []);
+  
+  
+  
   const handleLogout = async () => {
     await axios.post('/api/logout', {}, { withCredentials: true });
     navigate('/login');
@@ -60,7 +91,6 @@ const StudentDashboard = () => {
           rel.source === myId &&  // optional: filter by source to be sure
           ["friends", "advice", "influence"].includes(rel.link_type)
       );
-  
       const retainedLinks = positiveLinks.filter((rel) =>
         myClassmates.includes(rel.target)
       );
@@ -125,6 +155,17 @@ const StudentDashboard = () => {
   <Box w="100%" maxW="500px" mx="auto" h="400px">
     <StudentRadarChart scores={studentDetails.student.scores} />
   </Box>
+  {studentDetails?.clubs && (
+  <Box mt={10}>
+    <Heading size="md" mb={4}>Club Participation</Heading>
+    <ClubParticipationDonut 
+  studentClubs={studentDetails.clubs} 
+  popularClubs={popularClubs}
+  allClubs={allClubs}
+/>
+  </Box>
+)}
+
 </Box>
 )}
 
