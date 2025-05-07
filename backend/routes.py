@@ -1,7 +1,11 @@
 from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
+<<<<<<< HEAD
 from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores
 from sqlalchemy import func
+=======
+from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores, AllocationsSummary
+>>>>>>> 78b272d63a82c68c68f25437630df89bb29779fc
 import pandas as pd
 import math
 import numpy as np
@@ -10,8 +14,9 @@ from torch_geometric.data import Data
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers, saveAffiliationsToDb
 from auth import student_login_required, teacher_login_required, either_login_required
 from werkzeug.security import check_password_hash
+from sqlalchemy import func
 from survey_questions import SURVEY_QUESTION_MAP
-from model_utils import generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations
+from model_utils import generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations, generate_target_matrix
 from model.dqn.allocation_env import precompute_link_matrices
 from model.dqn.train_predict import train_and_allocate, returnEnvAndAgent, allocate_with_existing_model
 
@@ -233,12 +238,35 @@ def stage_allocation():
             if not student_ids:
                 return jsonify({"message": "No students allocated to this unit"}), 401
             number_of_students = len(student_ids)
-            return jsonify(unit_id = unit_id, number_of_unallocated_students=number_of_students), 200
+            
+            # Calculate the global averages for each score
+            avg_academic_engagement = db.query(func.avg(CalculatedScores.academic_engagement_score)).scalar()
+            avg_academic_wellbeing = db.query(func.avg(CalculatedScores.academic_wellbeing_score)).scalar()
+            avg_mental_health = db.query(func.avg(CalculatedScores.mental_health_score)).scalar()
+            avg_growth_mindset = db.query(func.avg(CalculatedScores.growth_mindset_score)).scalar()
+            avg_gender_norm = db.query(func.avg(CalculatedScores.gender_norm_score)).scalar()
+            avg_social_attitude = db.query(func.avg(CalculatedScores.social_attitude_score)).scalar()
+            avg_school_environment = db.query(func.avg(CalculatedScores.school_environment_score)).scalar()
+
+            # Send the values to the frontend
+            return jsonify({
+                "unit_id": unit_id,
+                "number_of_unallocated_students": number_of_students,
+                "global_averages": {
+                    "academic_engagement_score": avg_academic_engagement,
+                    "academic_wellbeing_score": avg_academic_wellbeing,
+                    "mental_health_score": avg_mental_health,
+                    "growth_mindset_score": avg_growth_mindset,
+                    "gender_norm_score": avg_gender_norm,
+                    "social_attitude_score": avg_social_attitude,
+                    "school_environment_score": avg_school_environment
+                }
+            }), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
         finally:
             db.close()
-    else: 
+    else:
         return jsonify({'message': 'POST SUCCESSFULLLL'}), 200
 
 
@@ -247,7 +275,16 @@ def stage_allocation():
 def allocate():
     if request.method == 'OPTIONS':
         return jsonify({'message': 'CORS preflight response'}), 200
-    elif request.method == 'GET':
+    elif request.method == 'POST':
+        data = request.get_json()
+        model = data.get('model_path')
+        num_classes = data.get('num_classes')
+
+        if model not in ['dq5.pth', 'dq7.pth', 'dq9.pth']:
+            return jsonify({"error": "Invalid model path"}), 400
+        if num_classes not in [5, 7, 9]:
+            return jsonify({"error": "Invalid number of classes"}), 400
+        target_feature_avgs = generate_target_matrix(data.get('target_values'))
         db = SessionLocal()
         try:
             user_id = session.get('user_id')
@@ -259,16 +296,17 @@ def allocate():
             print("\n------------ Checking for nulls in scores_df: ")
             print(scores_df.isna().sum())
 
-            target_class_size = 25
+            #num_classes = 7
             student_data = data.x.cpu().numpy()
             E= precompute_link_matrices(data)
             num_students = student_data.shape[0]
-            num_classes = math.ceil(num_students / target_class_size)
+            target_class_size = math.ceil(num_students / num_classes)
             feature_dim = student_data.shape[1]
 
-            np.random.seed(999)
-            target_feature_avgs = np.random.uniform(0.5, 0.9, size=(num_classes, feature_dim))
-            target_feature_avgs = np.round(target_feature_avgs, 2)
+            #np.random.seed(8)
+            #target_feature_avgs = np.random.uniform(0.5, 0.9, size=(num_classes, feature_dim))
+            #target_feature_avgs = np.round(target_feature_avgs, 2)
+            
             print("\n------------ Targets for each class:")
             print(target_feature_avgs)
             print("\n------------ Student data shape :", student_data.shape)
@@ -285,9 +323,14 @@ def allocate():
             #                    target_class_size,
             #                    target_feature_avgs,
             #                    student_data, E,250)
-            
+            model_path = "model/dqn/d{}.pth".format(num_classes)
+            print('"\n------------ using model: {}'.format(model_path))
             env, agent = returnEnvAndAgent(student_data, num_classes, target_class_size, target_feature_avgs, E,
+<<<<<<< HEAD
                       model_path='model/dqn/d7.pth')
+=======
+                      model_path)
+>>>>>>> 78b272d63a82c68c68f25437630df89bb29779fc
         
             allocation_summary = allocate_with_existing_model(student_data, env, agent, unit_id,E)
         
@@ -297,12 +340,14 @@ def allocate():
             return jsonify({'message':'Allocated {} students into {} classes and updated {} records in database'.format(num_students,num_classes,upserted),
                             'allocation_summary': allocation_summary}), 200
         except Exception as e:
+            print(e)
             return jsonify({"error": str(e)}), 500
         finally:
             db.close()
     else: 
-        return jsonify({'message': 'POST SUCCESSFULLLL'}), 200
+        return jsonify({'message': 'GET SUCCESSFULLLL'}), 200
 
+<<<<<<< HEAD
 @either_login_required
 @survey_routes.route('/api/top-clubs', methods=['GET'])
 def get_top_clubs():
@@ -324,11 +369,22 @@ def get_top_clubs():
         top_clubs = [{"club_name": name, "count": count} for name, count in results]
         return jsonify(top_clubs), 200
 
+=======
+@survey_routes.route('/api/allocation-summary', methods=['GET'])
+@either_login_required
+def get_allocation_summary():
+    db = SessionLocal()
+    try:
+        rows = db.query(AllocationsSummary).all()
+        data = [r.to_dict() for r in rows]
+        return jsonify(data), 200
+>>>>>>> 78b272d63a82c68c68f25437630df89bb29779fc
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
 
+<<<<<<< HEAD
 @either_login_required
 @survey_routes.route('/api/survey-averages', methods=['GET'])
 def get_survey_averages():
@@ -440,4 +496,65 @@ def get_survey_averages():
         db.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
+=======
+
+@survey_routes.route('/api/allocation-summary/<int:class_id>', methods=['GET'])
+@either_login_required
+def get_class_summary(class_id):
+    db = SessionLocal()
+    try:
+        r = db.query(AllocationsSummary).filter_by(class_id=class_id).first()
+        if not r:
+            return jsonify({"message": "Class not found"}), 404
+        return jsonify(r.to_dict()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@survey_routes.route('/api/class-relationships', methods=['GET'])
+@either_login_required
+def get_class_relationships():
+    class_id = request.args.get('class_id', type=int)
+    rel_type = request.args.get('relationship', default=None, type=str)
+    db = SessionLocal()
+    try:
+        # 1) Get all student IDs in this class
+        student_rows = db.query(Allocations.student_id) \
+                         .filter_by(class_id=class_id) \
+                         .all()
+        student_ids = [row[0] for row in student_rows]
+
+        # 2) Query only those relationships that connect two students in this class
+        q = db.query(Relationships) \
+              .filter(Relationships.source.in_(student_ids),
+                      Relationships.target.in_(student_ids))
+        if rel_type:
+            q = q.filter_by(link_type=rel_type)
+        rels = q.all()
+
+        # 3) Build the nodes and links lists
+        nodes = [
+            {
+                "id": f"S-{sid}",
+                "class_label": f"class_{class_id}"
+            }
+            for sid in student_ids
+        ]
+        links = [
+            {
+                "source": f"S-{r.source}",
+                "target": f"S-{r.target}",
+                "link_type": r.link_type
+            }
+            for r in rels
+        ]
+
+        return jsonify({ "nodes": nodes, "links": links }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+>>>>>>> 78b272d63a82c68c68f25437630df89bb29779fc
         db.close()

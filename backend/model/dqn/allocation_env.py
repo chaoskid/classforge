@@ -118,9 +118,9 @@ def state_to_vector(state, feature_dim):
 
 
 def precompute_link_matrices(graph_data):
-    # unchanged from your original
     num_nodes = graph_data.x.shape[0]
-    E = np.zeros((num_nodes, num_nodes))
+    #E = np.zeros((num_nodes, num_nodes))
+    E = np.full((num_nodes, num_nodes), -1, dtype=int)
     for i in range(len(graph_data.edge_index[0])):
         u = int(graph_data.edge_index[0][i])
         v = int(graph_data.edge_index[1][i])
