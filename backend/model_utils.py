@@ -153,32 +153,3 @@ def save_allocations(db_session, env, id_map, unit_id):
     
     db_session.commit()
     return upserted
-
-def generate_target_matrix(target_values: list[dict]) -> np.ndarray:
-    """
-    Build a (num_classes × feature_dim) matrix from the list of target‐value dicts.
-    Each dict has the 7 keys in `targetScores` mapping to floats (or numeric strings) in [0,1].
-    """
-    feature_keys = [
-        'academic_engagement_score',
-        'academic_wellbeing_score',
-        'gender_norm_score',
-        'growth_mindset_score',
-        'mental_health_score',
-        'school_environment_score',
-        'social_attitude_score',
-    ]
-    num_classes = len(target_values)
-    feature_dim = len(feature_keys)
-    mat = np.zeros((num_classes, feature_dim), dtype=float)
-
-    for i, class_dict in enumerate(target_values):
-        for j, key in enumerate(feature_keys):
-            raw = class_dict.get(key, 0.0)
-            try:
-                val = float(raw)
-            except (ValueError, TypeError):
-                val = 0.0
-            mat[i, j] = round(val, 2)
-
-    return mat

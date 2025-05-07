@@ -11,9 +11,9 @@ class DQN(nn.Module):
         action_dim: Number of possible actions (classes).
         """
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 256)
-        self.fc2 = nn.Linear(256, 128)
-        self.fc3 = nn.Linear(128, action_dim)
+        self.fc1 = nn.Linear(state_dim, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, action_dim)
     
     def forward(self, x):
         """
@@ -24,7 +24,7 @@ class DQN(nn.Module):
         return self.fc3(x)
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, lr=0.001, gamma=0.9, epsilon=0.5, epsilon_decay=0.999, min_epsilon=0.01):
+    def __init__(self, state_dim, action_dim, lr=0.001, gamma=0.9, epsilon=0.2, epsilon_decay=0.999, min_epsilon=0.01):
         """
         Initializes the DQN agent.
         
