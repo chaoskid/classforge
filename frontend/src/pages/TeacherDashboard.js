@@ -201,7 +201,7 @@ const Allocations = () => {
             <Button colorScheme="teal" onClick={() => navigate('/class-visualizations')}>
               View Classes
             </Button>
-            <Button colorScheme="teal" onClick={() => handleInProgress('Allocation Summary (click Allocate Students to see the summary)')}>
+            <Button colorScheme="teal" onClick={() => navigate('/allocation-results')}>
               Allocation Summary
             </Button>
           </HStack>
