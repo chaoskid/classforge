@@ -182,6 +182,7 @@ __pycache__/
 .venv/
 venv/
 env/
+myenv/
 
 # Ignore Node.js modules
 node_modules/
