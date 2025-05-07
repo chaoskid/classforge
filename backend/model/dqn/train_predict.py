@@ -93,7 +93,7 @@ def build_allocation_summary(env, target_feature_avgs, unit_id,E):
         row = {
             'unit_id':                 unit_id,
             'class_id':                i,
-            'class_label':             f"class_{i}",
+            'class_label':             f"Class {i+1}",
             'student_count':           int(cnt),
 
             # allocated averages:

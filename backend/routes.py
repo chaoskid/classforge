@@ -393,14 +393,89 @@ def allocate():
 def get_allocation_summary():
     db = SessionLocal()
     try:
-        rows = db.query(AllocationsSummary).all()
-        data = [r.to_dict() for r in rows]
+        # 1. fetch all the base summary rows
+        summaries = db.query(AllocationsSummary).all()
+        data = []
+
+        # 2. the relationship types you track (already plural)
+        rel_types = [
+            'friends',
+            'advice',
+            'feedback',
+            'disrespect',
+            'influence',
+            'more_time'
+        ]
+
+        for s in summaries:
+            base = s.to_dict()
+
+            # 3. get all student_ids in this unit/class
+            student_ids = [
+                sid for (sid,) in db
+                    .query(Allocations.student_id)
+                    .filter(
+                        Allocations.unit_id  == s.unit_id,
+                        Allocations.class_id == s.class_id
+                    )
+                    .all()
+            ]
+
+            # 4. init counts to zero, mapping 'friends' → 'friendships'
+            total_counts = {}
+            alloc_counts = {}
+            for lt in rel_types:
+                if lt == 'friends':
+                    total_counts['total_friendships'] = 0
+                    alloc_counts['num_friendships']     = 0
+                else:
+                    total_counts[f'total_{lt}'] = 0
+                    alloc_counts[f'num_{lt}']   = 0
+
+            if student_ids:
+                # 5. total outgoing per link_type
+                total_q = (
+                    db
+                    .query(Relationships.link_type, func.count().label("cnt"))
+                    .filter(Relationships.source.in_(student_ids))
+                    .group_by(Relationships.link_type)
+                    .all()
+                )
+                for lt, cnt in total_q:
+                    if lt == 'friends':
+                        total_counts['total_friendships'] = cnt
+                    else:
+                        total_counts[f'total_{lt}'] = cnt
+
+                # 6. allocated (both ends in same class) per link_type
+                alloc_q = (
+                    db
+                    .query(Relationships.link_type, func.count().label("cnt"))
+                    .filter(
+                        Relationships.source.in_(student_ids),
+                        Relationships.target.in_(student_ids)
+                    )
+                    .group_by(Relationships.link_type)
+                    .all()
+                )
+                for lt, cnt in alloc_q:
+                    if lt == 'friends':
+                        alloc_counts['num_friendships'] = cnt
+                    else:
+                        alloc_counts[f'num_{lt}'] = cnt
+
+            # 7. merge into the response
+            base.update(total_counts)
+            base.update(alloc_counts)
+            data.append(base)
+
         return jsonify(data), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     finally:
         db.close()
-
 
 @survey_routes.route('/api/allocation-summary/<int:class_id>', methods=['GET'])
 @either_login_required
