@@ -1078,4 +1078,88 @@ def get_survey_averages():
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/graph1', methods=['GET'])
+@either_login_required
+def get_descriptive_stats():
+    db = SessionLocal()
+    try:
+        total_students = db.query(Students).count()
+        completed = db.query(SurveyResponse.student_id).distinct().count()
+        not_completed = total_students - completed
+
+        return jsonify([
+            {"label": "Total Students", "value": total_students},
+            {"label": "Completed Survey", "value": completed},
+            {"label": "Not Completed Survey", "value": not_completed},
+        ]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/graph2', methods=['GET'])
+@either_login_required
+def graph2():
+    db = SessionLocal()
+    try:
+        averages = db.query(
+            func.avg(CalculatedScores.academic_engagement_score).label("Academic Engagement"),
+            func.avg(CalculatedScores.academic_wellbeing_score).label("Academic Wellbeing"),
+            func.avg(CalculatedScores.mental_health_score).label("Mental Health"),
+            func.avg(CalculatedScores.growth_mindset_score).label("Growth Mindset"),
+            func.avg(CalculatedScores.gender_norm_score).label("Gender Norms"),
+            func.avg(CalculatedScores.social_attitude_score).label("Social Attitude"),
+            func.avg(CalculatedScores.school_environment_score).label("School Environment")
+        ).first()
+
+        result = {
+            "labels": list(averages._fields),
+            "datasets": [{
+                "label": "Average Score",
+                "data": [round(getattr(averages, field), 2) for field in averages._fields],
+                "backgroundColor": "rgba(75, 192, 192, 0.6)"
+            }]
+        }
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@teacher_login_required
+@survey_routes.route('/api/graph3', methods=['GET'])
+@either_login_required
+def graph3():
+    db = SessionLocal()
+    try:
+        results = (
+            db.query(Relationships.link_type, func.count().label('count'))
+            .group_by(Relationships.link_type)
+            .all()
+        )
+
+        return jsonify({
+            "labels": [r.link_type for r in results],
+            "datasets": [{
+                "label": "Link Types",
+                "data": [r.count for r in results],
+                "backgroundColor": [
+                    "rgba(75, 192, 192, 0.6)",
+                    "rgba(153, 102, 255, 0.6)",
+                    "rgba(255, 206, 86, 0.6)",
+                    "rgba(255, 99, 132, 0.6)",
+                    "rgba(54, 162, 235, 0.6)",
+                    "rgba(201, 203, 207, 0.6)"
+                ]
+            }]
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
     
