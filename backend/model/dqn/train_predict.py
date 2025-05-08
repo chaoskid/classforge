@@ -93,7 +93,7 @@ def build_allocation_summary(env, target_feature_avgs, unit_id,E):
         row = {
             'unit_id':                 unit_id,
             'class_id':                i,
-            'class_label':             f"class_{i}",
+            'class_label':             f"Class {i+1}",
             'student_count':           int(cnt),
 
             # allocated averages:
@@ -187,7 +187,7 @@ def returnEnvAndAgent(student_data, num_classes, target_class_size, target_featu
       agent-- a DQNAgent with loaded weights and epsilon=0
     """
     feature_dim = student_data.shape[1]
-    state_dim = num_classes * (feature_dim + 1)
+    state_dim = num_classes * (2 + 2*feature_dim)
     action_dim = num_classes
 
     # 1) Build environment
@@ -232,7 +232,7 @@ def printSummary(env, target_feature_avgs):
         )
 
 
-def allocate_with_existing_model(student_data, env, agent, unit_id,E):
+def allocate_with_existing_model(student_data, env, agent, unit_id,E,target_class_size,target_feature_avgs):
     """
     Runs a single allocation pass with a loaded agent.
 
@@ -249,7 +249,10 @@ def allocate_with_existing_model(student_data, env, agent, unit_id,E):
     random.shuffle(idxs)
     for idx in idxs:
         feats = student_data[idx]
-        s = state_to_vector(env.state, feature_dim)
+        s = state_to_vector(env.state,
+                    feature_dim,
+                    target_class_size,
+                    target_feature_avgs)
         a = agent.act(s)
         allocations.append(a)
         env.step(feats, a, idx)

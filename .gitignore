@@ -132,6 +132,7 @@ celerybeat.pid
 .venv
 env/
 venv/
+myenv/
 ENV/
 env.bak/
 venv.bak/
@@ -181,6 +182,7 @@ __pycache__/
 .venv/
 venv/
 env/
+myenv/
 
 # Ignore Node.js modules
 node_modules/

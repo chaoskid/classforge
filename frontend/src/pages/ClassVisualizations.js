@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Box,
+  Button,
   Container,
   Heading,
   Select,
@@ -22,11 +23,11 @@ import {
   TabPanel,
   position,
   Avatar,
-  Divider,
-  Button
+  Divider
 } from '@chakra-ui/react';
 import axios from '../pages/axiosConfig';
 import Navbar from '../components/Navbar';
+import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import ForceGraph2D from 'react-force-graph-2d';
 import {
@@ -47,7 +48,6 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar, Radar } from 'react-chartjs-2';
 import { px } from 'framer-motion';
 import plugin from 'chartjs-plugin-datalabels';
-import { useNavigate, useLocation } from 'react-router-dom';
 
 // Register Chart.js components and plugins
 ChartJS.register(
@@ -195,11 +195,13 @@ export default function ClassVisualizations() {
   return (
     <>
       <Navbar />
-      <Box bg='gray.100' py={6}>
-        <Container maxW='7xl'>
-          <Button mb={4} onClick={() => navigate(-1)} colorScheme="blue">
-              &larr; Back
-          </Button>
+      <Box bg='gray.100' py={10} minH='100vh'>
+        <Container maxW='6xl' bg='white' p={8} borderRadius='lg' boxShadow='lg'>
+          <Button colorScheme="blue" onClick={() => navigate(-1)}>
+                          Back
+                        </Button>
+                  
+                <Box minH="3vh"></Box>
           <Heading mb={6}>Class Visualizations</Heading>
           {/* --- GLOBAL CLASS SELECTOR --- */}
           <Select
