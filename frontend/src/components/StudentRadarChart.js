@@ -36,7 +36,7 @@ const StudentRadarChart = ({ scores }) => {
     ],
     datasets: [
       {
-        label: 'Your Profile',
+        label: 'Score',
         data: [
           scores.academic_engagement_score,
           scores.academic_wellbeing_score,

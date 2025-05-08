@@ -858,4 +858,87 @@ def simulate_allocation():
 
     finally:
         db.close()
+
+@survey_routes.route('/api/student-info/<int:student_id>', methods=['GET'])
+@teacher_login_required  # Specifically only accessible by teachers
+def get_student_info_by_teacher(student_id):
+    db = SessionLocal()
+    try:
+        student = db.query(Students).filter_by(student_id=student_id).first()
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+
+        # Fetching club affiliations
+        club_ids = [cid[0] for cid in db.query(Affiliations.club_id).filter_by(student_id=student_id).all()]
+        club_names = [c[0] for c in db.query(Clubs.club_name).filter(Clubs.club_id.in_(club_ids)).all()]
+
+        # Fetching unit allocations
+        unit_ids = [uid[0] for uid in db.query(Allocations.unit_id).filter_by(student_id=student_id).all()]
+        unit_names = [u[0] for u in db.query(Unit.unit_name).filter(Unit.unit_id.in_(unit_ids)).all()]
+
+        # Scores
+        scores = db.query(CalculatedScores).filter_by(student_id=student_id).first()
+        student_scores = {
+            "academic_engagement_score": scores.academic_engagement_score,
+            "academic_wellbeing_score": scores.academic_wellbeing_score,
+            "mental_health_score": scores.mental_health_score,
+            "growth_mindset_score": scores.growth_mindset_score,
+            "gender_norm_score": scores.gender_norm_score,
+            "social_attitude_score": scores.social_attitude_score,
+            "school_environment_score": scores.school_environment_score,
+        } if scores else {}
+
+        # Class allocation & classmate IDs
+        allocation = db.query(Allocations).filter_by(student_id=student_id).first()
+        class_id = allocation.class_id if allocation else None
+        print("class_id: {}".format(class_id))
+        class_avg_score = None
+        classmates_ids = []
+        if class_id != None:
+            class_avg_score = db.query(func.avg(Students.academic_score))\
+                .join(Allocations, Students.student_id == Allocations.student_id)\
+                .filter(Allocations.class_id == class_id).scalar()
+
+            classmate_rows = db.query(Allocations.student_id).filter_by(class_id=class_id).all()
+            classmates_ids = [r[0] for r in classmate_rows if r[0] != student_id]
+
+        # Relationships
+        relationships = db.query(Relationships).filter_by(source=student_id).all()
+        detailed_relationships = []
+        for rel in relationships:
+            target_student = db.query(Students).filter_by(student_id=rel.target).first()
+            if target_student:
+                detailed_relationships.append({
+                    "target_name": f"{target_student.first_name} {target_student.last_name}",
+                    "target_email": target_student.email,
+                    "target": target_student.student_id,
+                    "link_type": rel.link_type
+                })
+
+        result = {
+            "student": {
+                "name": f"{student.first_name} {student.last_name}",
+                "email": student.email,
+                "house": student.house,
+                "class_id": class_id,
+                "scores": student_scores,
+                "academic_score": student.academic_score,
+                "class_average_score": class_avg_score
+            },
+            "clubs": club_names or ["No clubs joined"],
+            "units": unit_names or ["No units enrolled"],
+            "relationships": detailed_relationships,
+            "classmates": classmates_ids
+        }
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        db.close()
+
+
     

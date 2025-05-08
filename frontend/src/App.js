@@ -9,6 +9,7 @@ import TeacherDashboard from './pages/TeacherDashboard';
 import AllocationResults from './pages/AllocationResults';
 import SnaSurvey from './pages/SnaSurvey';
 import ClassVisualizations from './pages/ClassVisualizations';
+import StudentVisualization from './pages/StudentVisualizations';
 import Login from './pages/login'; // capital "L" for consistency with file
 import AllocationSettings from './pages/AllocationSettings';
 import ManualOverride from './pages/ManualOverride'; 
@@ -28,6 +29,7 @@ function App() {
             <Route path="/allocation-results" element={<AllocationResults />} />
             <Route path="/allocation-settings" element={<AllocationSettings />} />
             <Route path="/class-visualizations" element={<ClassVisualizations />} />
+            <Route path="/student-visualizations" element={<StudentVisualization />} />
             <Route path="/survey" element={<SnaSurvey />} />
             <Route path="/manual-override" element={<ManualOverride />} />
           </Route>
