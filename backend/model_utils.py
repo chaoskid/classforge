@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, session
 from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores, AllocationsSummary
 import torch
 from torch_geometric.data import Data
+from model.rgcn.rgcn_linkpred import InductiveRGCN, LinkPredictor
 
 def generate_dataframes(db, user_id):
     teacher = db.query(Teachers).filter_by(emp_id=user_id).first()
@@ -182,3 +183,79 @@ def generate_target_matrix(target_values: list[dict]) -> np.ndarray:
             mat[i, j] = round(val, 2)
 
     return mat
+
+def returnRgcnLinkPred():
+    ckpt = torch.load("model/rgcn/rgcn_linkpred_checkpoint.pth", map_location='cpu')
+    in_channels      = ckpt['in_channels']
+    hidden_channels  = ckpt['hidden_channels']
+    out_channels     = ckpt['out_channels']
+    num_relations    = ckpt['num_relations']
+    link_hidden_dim  = ckpt['link_hidden_dim']
+
+    model = InductiveRGCN(in_channels, hidden_channels, out_channels, num_relations)
+    link_predictor = LinkPredictor(out_channels, link_hidden_dim, num_relations)
+
+    model.load_state_dict(     ckpt['rgcn_state'])
+    link_predictor.load_state_dict(ckpt['linkpred_state'])
+    
+    model.eval()
+    link_predictor.eval()
+
+    return model, link_predictor
+
+def generate_dataframes_by_classid(db, user_id, class_id,student_id):
+    teacher = db.query(Teachers).filter_by(emp_id=user_id).first()
+    if not teacher:
+        return jsonify({"message": "Invalid teacher account"}), 401
+    unit_id = teacher.manage_unit
+    student_id_rows = db.query(Allocations.student_id).filter_by(unit_id=unit_id, class_id=class_id).all()
+    student_ids = [row[0] for row in student_id_rows]
+    student_ids.append(student_id)
+    print("\n------------  Student IDs: ", student_ids)
+    if not student_ids:
+        return jsonify({"message": "No students allocated to this unit"}), 401
+    calculated_scores = db.query(CalculatedScores).filter(CalculatedScores.student_id.in_(student_ids)).all()
+    if not calculated_scores:
+        return jsonify({"message": "No students scores found"}), 401
+    relationships = db.query(Relationships).filter(Relationships.source.in_(student_ids),Relationships.target.in_(student_ids)).all()
+    if not relationships:
+        return jsonify({"message": "No relationships found"}), 401
+    print("\n------------  Creating list of dict from calculated scores")
+    scores_list = [ obj.to_dict() for obj in calculated_scores ]
+    print("\n------------  Creating list of dict from relationship scores")
+    relationships_list = [ obj.to_dict() for obj in relationships ]
+    rel_df = pd.DataFrame(relationships_list)
+    scores_df = pd.DataFrame(scores_list)
+    print("\n------------ Scores DataFrame columns: \n", scores_df.columns)
+    print("\n------------ Scores DataFrame shape: \n", scores_df.shape)
+    print("\n------------ Relationships DataFrame columns: \n", rel_df.columns)
+    print("\n------------ Relationships DataFrame shape: \n", rel_df.shape)
+    return unit_id,scores_df, rel_df
+
+def get_non_relationship_ids(data, idmap, source_id):
+    
+    # map the actual source ID to its node index
+    source_idx = int(idmap[source_id])
+
+    # edge_index rows: [0] = source nodes, [1] = target nodes
+    edge_index = data.edge_index
+    if isinstance(edge_index, torch.Tensor):
+        src, dst = edge_index
+    else:
+        # in case it's a numpy array or list
+        src, dst = torch.tensor(edge_index[0]), torch.tensor(edge_index[1])
+
+    # find all neighbors of source_idx (both directions)
+    # out-edges:
+    out_neigh = dst[src == source_idx].tolist()
+    # in-edges:
+    in_neigh  = src[dst == source_idx].tolist()
+    neighbors = set(out_neigh + in_neigh)
+
+    # build the full set of all node indices
+    all_indices = set(idmap.values())
+
+    # non-neighbors = everyone except source and its neighbors
+    non_neighbors = sorted(all_indices - neighbors - {source_idx})
+
+    return non_neighbors
