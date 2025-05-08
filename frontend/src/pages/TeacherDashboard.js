@@ -155,7 +155,7 @@ const Allocations = () => {
     <>
       <Navbar />
       <Box bg="gray.100" minH="100vh" py={10}>
-        <Container maxW="6xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
+        <Container maxW="7xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
 
           {/* Visualization Section */}
           <Heading size="lg" mb={6}>Visualizations</Heading>
@@ -189,7 +189,7 @@ const Allocations = () => {
           <Heading size="md" mb={2}>Students Options</Heading>
           <Divider mb={4} />
           <HStack spacing={6} mb={10}>
-            <Button colorScheme="purple" onClick={() => handleInProgress('View Students')}>
+            <Button colorScheme="purple" onClick={() => navigate('/student-visualizations')}>
               View Students
             </Button>
           </HStack>
