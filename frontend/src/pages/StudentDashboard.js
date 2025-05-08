@@ -126,59 +126,54 @@ const StudentDashboard = () => {
           </Button>
           {Object.keys(responses).length > 0 && (
   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={10}>
-      {/* 📋 Survey Responses Box */}
-      <Box mb={6} p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
-  <Heading size="md" mb={4}>Friendship Retention</Heading>
+    
+  <Box p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
+    {/* Student Info */}
+    <Heading size="md" mb={4}>Student Info</Heading>
+    <Text><b>Name:</b> {studentDetails?.student?.name}</Text>
+    <Text><b>Email:</b> {studentDetails?.student?.email}</Text>
+    <Text><b>Subjects:</b> {studentDetails?.units?.join(', ') || 'None'}</Text>
+    <Text><b>Clubs:</b> {studentDetails?.clubs?.join(', ') || 'None'}</Text>
 
-  <Box w="200px" mx="auto" mt={4} transform="rotate(-90deg)">
-    <CircularProgressbarWithChildren
-      value={retention * 100}
-      maxValue={100}
-      strokeWidth={10}
-      styles={buildStyles({
-        pathColor: '#0a2f5c',
-        trailColor: '#f4e3c1',
-        strokeLinecap: 'butt',
-        rotation: 1, // Half-circle
-      })}
-      circleRatio={0.5} // Half circle
-    >
-      <div style={{ transform: 'rotate(90deg)' }}>
-        <Text fontSize="2xl" fontWeight="bold">{Math.round(retention * 100)}%</Text>
-      </div>
-    </CircularProgressbarWithChildren>
+    {studentDetails?.student?.class_id !== undefined && studentDetails.student.class_id !== null && (
+      <Text><b>Allocated Class:</b> Class {studentDetails.student.class_id}</Text>
+    )}
+
+    {/* Friendship Retention */}
+    <Heading size="md" mt={8} mb={4}>Friendship Retention</Heading>
+    <Box w="200px" mx="auto"  transform="rotate(-90deg)" overflow="hidden">
+      <CircularProgressbarWithChildren
+        value={retention * 100}
+        maxValue={100}
+        strokeWidth={10}
+        styles={buildStyles({
+          pathColor: '#0a2f5c',
+          trailColor: '#f4e3c1',
+          strokeLinecap: 'butt',
+          rotation: 1,
+        })}
+        circleRatio={0.5}
+      >
+        <div style={{ transform: 'rotate(90deg)' }}>
+          <Text fontSize="2xl" fontWeight="bold">{Math.round(retention * 100)}%</Text>
+        </div>
+      </CircularProgressbarWithChildren>
+    </Box>
+
+    {/* Wellbeing Radar Chart */}
+    {studentDetails?.student?.scores && (
+      <Box >
+        <Heading size="md" mb={4}>Personal Wellbeing Profile</Heading>
+        <Box w="100%" maxW="500px" mx="auto" h="400px">
+          <StudentRadarChart scores={studentDetails.student.scores} />
+        </Box>
+      </Box>
+    )}
   </Box>
-  
-  {studentDetails?.student?.scores && (
-  <Box mt={10}>
-  <Heading size="md" mb={4}>Personal Wellbeing Profile</Heading>
-  <Box w="100%" maxW="500px" mx="auto" h="400px">
-    <StudentRadarChart scores={studentDetails.student.scores} />
-  </Box>
-  {studentDetails?.clubs && (
-  <Box mt={10}>
-    <Heading size="md" mb={4}>Club Participation</Heading>
-    <ClubParticipationDonut 
-  studentClubs={studentDetails.clubs} 
-  popularClubs={popularClubs}
-  allClubs={allClubs}
-/>
-  </Box>
-)}
 
-</Box>
-)}
-
-
-
-</Box>
 
     <Box p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
-      <Heading size="md" mb={4}>Student Info</Heading>
-      <Text><b>Name:</b> {studentDetails?.student?.name}</Text>
-      <Text><b>Email:</b> {studentDetails?.student?.email}</Text>
-      <Text><b>Subjects:</b> {studentDetails?.units?.join(', ') || 'None'}</Text>
-      <Text><b>Clubs:</b> {studentDetails?.clubs?.join(', ') || 'None'}</Text>
+      
       {studentDetails?.relationships?.length > 0 && (
         <Box mt={6}>
           <Heading size="md" mb={4}>Relationship Network</Heading>
