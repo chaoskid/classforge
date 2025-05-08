@@ -18,4 +18,4 @@ Base.metadata.create_all(bind=engine)
 app.register_blueprint(survey_routes)
 
 if __name__ == '__main__':
-    app.run(port=5002,debug=True)
+    app.run(port=5000,debug=True)
