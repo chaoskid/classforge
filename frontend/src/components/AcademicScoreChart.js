@@ -3,8 +3,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContaine
 
 const AcademicScoreChart = ({ yourScore, classAvg }) => {
   const data = [
-    { name: 'You', score: yourScore || 0 },
-    { name: 'Class Avg', score: classAvg || 0 }
+    { name: 'Individual Academic Score', score: yourScore || 0 },
+    { name: 'Class Average Academic Score', score: classAvg || 0 }
   ];
 
   return (

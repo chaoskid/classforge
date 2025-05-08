@@ -11,9 +11,10 @@ from auth import student_login_required, teacher_login_required, either_login_re
 from werkzeug.security import check_password_hash
 from sqlalchemy import func
 from survey_questions import SURVEY_QUESTION_MAP
-from model_utils import generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations, generate_target_matrix
+from model_utils import get_non_relationship_ids,returnRgcnLinkPred,generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations, generate_target_matrix, generate_dataframes_by_classid
 from model.dqn.allocation_env import precompute_link_matrices
 from model.dqn.train_predict import train_and_allocate, returnEnvAndAgent, allocate_with_existing_model
+from model.rgcn.predict_link import predict_links
 
 survey_routes = Blueprint('survey_routes', __name__)
 
@@ -762,6 +763,7 @@ def simulate_allocation():
 
         original_avgs = {}
         new_avgs      = {}
+        target_avgs = {}
         for field in base_fields:
             alloc_col   = f"alloc_{field}"
             class_avg   = float(getattr(summary, alloc_col))
@@ -769,6 +771,8 @@ def simulate_allocation():
             new_avg     = (class_avg * current_count + student_val) / (current_count + 1)
             original_avgs[field] = class_avg
             new_avgs[field]      = new_avg
+            target_field = f"target_{field}"
+            target_avgs[field]   = float(getattr(summary, target_field))
 
         # — Relationship summary (same as before) —
         alloc_rec     = db.query(Allocations).filter_by(student_id=student_id).first()
@@ -801,18 +805,37 @@ def simulate_allocation():
         # 1) All members of the target class
         member_ids = [row[0] for row in db.query(Allocations.student_id)
                                      .filter_by(class_id=target_class).all()]
+        member_ids.append(student_id)
         students   = db.query(Students).filter(Students.student_id.in_(member_ids)).all()
         nodes = [
-            {"id": s.student_id, "label": f"{s.first_name} {s.last_name}"}
+            {"id": s.student_id, "first_name": f"{s.first_name}","last_name": f"{s.last_name}"}
             for s in students
         ]
 
         # 2) Only this student's reported links within that class
-        links = [
+        existing_links = [
             {"source": student_id, "target": r.target, "link_type": r.link_type}
             for r in rel_rows
             if r.target in member_ids
         ]
+
+        user_id = session.get('user_id')
+        unit_id, scores_df, relationships_df = generate_dataframes_by_classid(db, user_id,target_class,student_id)
+        relationships_df = map_link_types(relationships_df)
+        scores_df, edges_df, id_map = map_student_ids(scores_df, relationships_df)
+        data = create_data_object(scores_df, edges_df)
+        id_map = {int(k): v for k, v in id_map.items()}
+        print(id_map)
+        print("\n------------ Data object created: \n", data)
+        model_path = "model/rgcn/rgcn_linkpred_checkpoint.pth"
+        model,link_predictor = returnRgcnLinkPred()
+        non_relationship_ids = get_non_relationship_ids(data,id_map,student_id)
+        print("\n------------ Non relationship ids: ", non_relationship_ids)
+        predicted_links = predict_links(data.x, model, link_predictor, id_map[student_id], non_relationship_ids, id_map)
+        print("\n------------ Predicted links: ", predicted_links)
+
+
+
 
         # — Final Response —
         return jsonify({
@@ -822,9 +845,11 @@ def simulate_allocation():
             "new_count":             current_count + 1,
             "original_averages":     original_avgs,
             "new_averages":          new_avgs,
+            "target_averages":       target_avgs,
             "relationship_summary":  relationship_summary,
             "nodes":                 nodes,
-            "links":                 links
+            "existing_links":        existing_links,
+            "predicted_links":       predicted_links
         }), 200
 
     except Exception as e:
@@ -833,4 +858,87 @@ def simulate_allocation():
 
     finally:
         db.close()
+
+@survey_routes.route('/api/student-info/<int:student_id>', methods=['GET'])
+@teacher_login_required  # Specifically only accessible by teachers
+def get_student_info_by_teacher(student_id):
+    db = SessionLocal()
+    try:
+        student = db.query(Students).filter_by(student_id=student_id).first()
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+
+        # Fetching club affiliations
+        club_ids = [cid[0] for cid in db.query(Affiliations.club_id).filter_by(student_id=student_id).all()]
+        club_names = [c[0] for c in db.query(Clubs.club_name).filter(Clubs.club_id.in_(club_ids)).all()]
+
+        # Fetching unit allocations
+        unit_ids = [uid[0] for uid in db.query(Allocations.unit_id).filter_by(student_id=student_id).all()]
+        unit_names = [u[0] for u in db.query(Unit.unit_name).filter(Unit.unit_id.in_(unit_ids)).all()]
+
+        # Scores
+        scores = db.query(CalculatedScores).filter_by(student_id=student_id).first()
+        student_scores = {
+            "academic_engagement_score": scores.academic_engagement_score,
+            "academic_wellbeing_score": scores.academic_wellbeing_score,
+            "mental_health_score": scores.mental_health_score,
+            "growth_mindset_score": scores.growth_mindset_score,
+            "gender_norm_score": scores.gender_norm_score,
+            "social_attitude_score": scores.social_attitude_score,
+            "school_environment_score": scores.school_environment_score,
+        } if scores else {}
+
+        # Class allocation & classmate IDs
+        allocation = db.query(Allocations).filter_by(student_id=student_id).first()
+        class_id = allocation.class_id if allocation else None
+        print("class_id: {}".format(class_id))
+        class_avg_score = None
+        classmates_ids = []
+        if class_id != None:
+            class_avg_score = db.query(func.avg(Students.academic_score))\
+                .join(Allocations, Students.student_id == Allocations.student_id)\
+                .filter(Allocations.class_id == class_id).scalar()
+
+            classmate_rows = db.query(Allocations.student_id).filter_by(class_id=class_id).all()
+            classmates_ids = [r[0] for r in classmate_rows if r[0] != student_id]
+
+        # Relationships
+        relationships = db.query(Relationships).filter_by(source=student_id).all()
+        detailed_relationships = []
+        for rel in relationships:
+            target_student = db.query(Students).filter_by(student_id=rel.target).first()
+            if target_student:
+                detailed_relationships.append({
+                    "target_name": f"{target_student.first_name} {target_student.last_name}",
+                    "target_email": target_student.email,
+                    "target": target_student.student_id,
+                    "link_type": rel.link_type
+                })
+
+        result = {
+            "student": {
+                "name": f"{student.first_name} {student.last_name}",
+                "email": student.email,
+                "house": student.house,
+                "class_id": class_id,
+                "scores": student_scores,
+                "academic_score": student.academic_score,
+                "class_average_score": class_avg_score
+            },
+            "clubs": club_names or ["No clubs joined"],
+            "units": unit_names or ["No units enrolled"],
+            "relationships": detailed_relationships,
+            "classmates": classmates_ids
+        }
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        db.close()
+
+
     
