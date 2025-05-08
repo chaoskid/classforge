@@ -504,6 +504,12 @@ def get_class_relationships():
                          .all()
         student_ids = [row[0] for row in student_rows]
 
+        # 2) Fetch those students’ names and build a lookup by ID
+        students = db.query(Students) \
+                        .filter(Students.student_id.in_(student_ids)) \
+                        .all()
+        student_map = { s.student_id: s for s in students }
+
         # 2) Query only those relationships that connect two students in this class
         q = db.query(Relationships) \
               .filter(Relationships.source.in_(student_ids),
@@ -513,13 +519,17 @@ def get_class_relationships():
         rels = q.all()
 
         # 3) Build the nodes and links lists
-        nodes = [
-            {
-                "id": f"S-{sid}",
-                "class_label": f"class_{class_id}"
-            }
-            for sid in student_ids
-        ]
+        nodes = []
+        for sid in student_ids:
+            s = student_map.get(sid)
+            if not s:
+                continue
+            nodes.append({
+                "id":            f"S-{sid}",
+                "class_label":   f"class_{class_id}",
+                "first_name":    s.first_name,
+                "last_name":     s.last_name
+            })
         links = [
             {
                 "source": f"S-{r.source}",
@@ -534,6 +544,131 @@ def get_class_relationships():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    finally:
+        db.close()
+
+@survey_routes.route('/api/class-behavioral-support', methods=['GET'])
+@either_login_required
+def get_class_behavioral_support():
+    """
+    Returns students in a class who have been 'disrespected' by someone else.
+    """
+    class_id = request.args.get('class_id', type=int)
+    db = SessionLocal()
+    try:
+        # 1) who’s in this class?
+        student_ids = [r[0] for r in
+            db.query(Allocations.student_id)
+              .filter_by(class_id=class_id)
+              .all()
+        ]
+
+        # 2) who’s been disrespected?
+        rels = db.query(Relationships) \
+                 .filter(
+                    Relationships.source.in_(student_ids),
+                    Relationships.target.in_(student_ids),
+                    Relationships.link_type=='disrespect'
+                 ).all()
+        targets = {r.target for r in rels}
+
+        # 3) look up their names
+        studs = db.query(Students) \
+                  .filter(Students.student_id.in_(targets)).all()
+
+        result = [{
+          'student_id': s.student_id,
+          'first_name': s.first_name,
+          'last_name':  s.last_name
+        } for s in studs]
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+
+@survey_routes.route('/api/class-mental-health-priority', methods=['GET'])
+@either_login_required
+def get_class_mental_health_priority():
+    """
+    Returns students in a class whose mental_health_score < 0.5
+    """
+    class_id = request.args.get('class_id', type=int)
+    db = SessionLocal()
+    try:
+        # 1) who’s in this class?
+        student_ids = [r[0] for r in
+            db.query(Allocations.student_id)
+              .filter_by(class_id=class_id)
+              .all()
+        ]
+
+        # 2) who scores below 0.5?
+        lows = db.query(CalculatedScores.student_id) \
+                 .filter(
+                   CalculatedScores.student_id.in_(student_ids),
+                   CalculatedScores.mental_health_score < 0.5
+                 ).all()
+        low_ids = [s[0] for s in lows]
+
+        # 3) name lookup
+        studs = db.query(Students) \
+                  .filter(Students.student_id.in_(low_ids)).all()
+
+        result = [{
+          'student_id': s.student_id,
+          'first_name': s.first_name,
+          'last_name':  s.last_name
+        } for s in studs]
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+
+@survey_routes.route('/api/class-relationship-counts', methods=['GET'])
+@either_login_required
+def get_class_relationship_counts():
+    """
+    Returns counts of each link_type among students in a class.
+    """
+    class_id = request.args.get('class_id', type=int)
+    db = SessionLocal()
+    try:
+        # who’s in class?
+        student_ids = [r[0] for r in
+            db.query(Allocations.student_id)
+              .filter_by(class_id=class_id)
+              .all()
+        ]
+
+        # group+count
+        rows = db.query(
+                  Relationships.link_type,
+                  func.count()
+               ) \
+               .filter(
+                  Relationships.source.in_(student_ids),
+                  Relationships.target.in_(student_ids)
+               ) \
+               .group_by(Relationships.link_type) \
+               .all()
+
+        # build a complete map
+        counts = {lt: cnt for lt, cnt in rows}
+        for lt in ['friends','influence','feedback','more_time','advice','disrespect']:
+            counts.setdefault(lt, 0)
+
+        return jsonify(counts), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     finally:
         db.close()
     
