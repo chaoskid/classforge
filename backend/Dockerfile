@@ -7,11 +7,11 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # 3) Copy & install dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 4) Copy the rest of your backend code
-COPY . .
+COPY backend/ ./
 
 # 5) Expose Flask port
 EXPOSE 5000
