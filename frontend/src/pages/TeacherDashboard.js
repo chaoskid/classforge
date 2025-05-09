@@ -21,6 +21,8 @@ import {
   Stat,
   StatLabel,
   StatNumber,
+  Spinner,
+  Text,
 } from '@chakra-ui/react';
 import { Line, Bar, Pie } from 'react-chartjs-2';
 import {
@@ -321,6 +323,7 @@ const Allocations = () => {
   React.useEffect(() => {
     const fetchGraphs = async () => {
       try {
+        setLoading(true);
         // Fetch top clubs data for graph 3
         const res3 = await axios.get('/api/top-clubs');
         const topClubs = res3.data;
@@ -388,6 +391,8 @@ const Allocations = () => {
 
       } catch (err) {
         console.error('API Error:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -402,6 +407,20 @@ const Allocations = () => {
     navigate('/manual-override');
   };
   const handleInProgress = (section) => alert(`${section} page is in progress`);
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
+          <Spinner size="xl" />
+        </Box>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>

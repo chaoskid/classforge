@@ -225,6 +225,8 @@ const AllocationResults = () => {
       <>
         <Navbar />
         <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
           <Spinner size="xl" />
         </Box>
         <Footer />

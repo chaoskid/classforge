@@ -23,7 +23,8 @@ import {
   TabPanel,
   position,
   Avatar,
-  Divider
+  Divider,
+  Spinner,
 } from '@chakra-ui/react';
 import axios from '../pages/axiosConfig';
 import Navbar from '../components/Navbar';
@@ -89,9 +90,11 @@ export default function ClassVisualizations() {
   const [relCounts, setRelCounts]               = useState({});
   const fgRef = useRef();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   // load class list
   useEffect(() => {
+    setLoading(true);
     axios.get('/api/allocation-summary')
       .then(res => {
         setClasses(res.data);
@@ -100,7 +103,10 @@ export default function ClassVisualizations() {
           setNetworkClass(res.data[0].class_id)
         }
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   // metrics for radar
@@ -191,6 +197,20 @@ export default function ClassVisualizations() {
       .then(res => setRelCounts(res.data))
       .catch(console.error);
   }, [radarClass]);
+  
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
+          <Spinner size="xl" />
+        </Box>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
