@@ -30,6 +30,7 @@ import Navbar from '../components/Navbar';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import ForceGraph2D from 'react-force-graph-2d';
+import { ViewIcon } from '@chakra-ui/icons';
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -89,6 +90,11 @@ export default function ClassVisualizations() {
   const [relCounts, setRelCounts]               = useState({});
   const fgRef = useRef();
   const navigate = useNavigate();
+  const handleStudentClick = id => {
+    navigate('/student-visualizations', {
+      state: { selectedStudent: id }
+    });
+  };
 
   // load class list
   useEffect(() => {
@@ -368,9 +374,17 @@ export default function ClassVisualizations() {
                     <List spacing={0}>
                       {behavioralStudents.map((s, idx) => (
                         <ListItem key={s.student_id}>
-                          <HStack spacing={3} py={2}>
+                          <HStack justify="space-between" align="center" py={2}>
+                          <HStack spacing={3}>
                             <Avatar name={`${s.first_name} ${s.last_name}`} size="sm" />
                             <Text>{s.first_name} {s.last_name}</Text>
+                          </HStack>
+                          <ViewIcon
+                            boxSize={5}
+                            cursor="pointer"
+                            onClick={() => handleStudentClick(s.student_id)}
+                            aria-label="View details"
+                          />                          
                           </HStack>
                           {/* thin separator under every item except last */}
                           {idx < behavioralStudents.length - 1 && <Divider borderColor="gray.200" />}
@@ -387,9 +401,17 @@ export default function ClassVisualizations() {
                     <List spacing={2}>
                       {mentalHealthStudents.map((s, idx) => (
                         <ListItem key={s.student_id}>
-                          <HStack spacing={3} py={2}>
+                          <HStack justify="space-between" align="center" py={2}>
+                          <HStack spacing={3}>
                             <Avatar name={`${s.first_name} ${s.last_name}`} size="sm" />
                             <Text>{s.first_name} {s.last_name}</Text>
+                          </HStack>
+                          <ViewIcon
+                            boxSize={5}
+                            cursor="pointer"
+                            onClick={() => handleStudentClick(s.student_id)}
+                            aria-label="View details"
+                          />                          
                           </HStack>
                           {/* thin separator under every item except last */}
                           {idx < mentalHealthStudents.length - 1 && <Divider borderColor="gray.200" />}
