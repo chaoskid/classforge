@@ -115,11 +115,11 @@ const StudentDashboard = () => {
           <Button colorScheme="teal" onClick={() => navigate('/survey')} mr={4}>
             Go to Survey
           </Button>
-          <Button variant="outline" onClick={() => navigate('/survey')}>
+          <Button variant="outline" onClick={() => navigate('/survey')} mr={4}>
           Retake Survey
           </Button>
-          <Button variant="Outline" onClick={() => alert("Feedback system coming soon!")} mr={4}>
-          Give Feedback
+          <Button variant="outline" onClick={() => navigate('/feedback')} mr={4}>
+             Give Feedback
           </Button>
           <Button variant="outline" onClick={handleLogout}>
             Logout

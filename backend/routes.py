@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
-from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores, AllocationsSummary
+from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores, AllocationsSummary, Feedback
 import pandas as pd
 import math
 import numpy as np
@@ -9,7 +9,7 @@ from torch_geometric.data import Data
 from utils import normalizeResponse, calculateFeatures, saveFeaturesToDb, responseToDict, saveRelationshipsToDb, saveSurveyAnswers, saveAffiliationsToDb
 from auth import student_login_required, teacher_login_required, either_login_required
 from werkzeug.security import check_password_hash
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from survey_questions import SURVEY_QUESTION_MAP
 from model_utils import get_non_relationship_ids,returnRgcnLinkPred,generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations, generate_target_matrix, generate_dataframes_by_classid
 from model.dqn.allocation_env import precompute_link_matrices
@@ -939,6 +939,349 @@ def get_student_info_by_teacher(student_id):
 
     finally:
         db.close()
-
-
     
+
+@teacher_login_required
+@survey_routes.route('/api/top-clubs', methods=['GET'])
+def get_top_clubs():
+    db = SessionLocal()
+    try:
+
+        # Join Affiliations with Clubs and count affiliations per club
+        results = (
+            db.query(Clubs.club_name, func.count(Affiliations.student_id).label("count"))
+            .join(Affiliations, Clubs.club_id == Affiliations.club_id)
+            .group_by(Clubs.club_id)
+            .order_by(desc("count"))
+            .limit(5)
+            .all()
+        )
+
+        # Convert to list of dicts
+        top_clubs = [{"club_name": name, "count": count} for name, count in results]
+        return jsonify(top_clubs), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/survey-averages', methods=['GET'])
+def get_survey_averages():
+    db = SessionLocal()
+    try:
+        # Define which columns are negative sentiment (to be multiplied by -1)
+        negative_sentiment_columns = [
+            'isolated_school_ans',
+            'criticise_school_ans',
+            'bullying_ans',
+            'nervous_ans',
+            'hopeless_ans',
+            'restless_ans',
+            'depressed_ans',
+            'worthless_ans',
+            'intelligence2_ans',
+            'man_violence_opinion',
+            'man_sexual_opinion',
+            'gay_man_opinion',
+            'men_better_stem_ans'
+        ]
+        
+        # Get average of all survey response columns using func.avg()
+        result = db.query(
+            # School experience questions
+            func.avg(SurveyResponse.comfortability_ans).label('comfortability_ans'),
+            func.avg(SurveyResponse.isolated_school_ans).label('isolated_school_ans'),
+            func.avg(SurveyResponse.criticise_school_ans).label('criticise_school_ans'),
+            func.avg(SurveyResponse.opinion_school_ans).label('opinion_school_ans'),
+            func.avg(SurveyResponse.bullying_ans).label('bullying_ans'),
+            func.avg(SurveyResponse.future_ans).label('future_ans'),
+            func.avg(SurveyResponse.covid_ans).label('covid_ans'),    
+
+            # Wellbeing questions
+            func.avg(SurveyResponse.how_happy_ans).label('how_happy_ans'),
+            func.avg(SurveyResponse.nervous_ans).label('nervous_ans'),
+            func.avg(SurveyResponse.hopeless_ans).label('hopeless_ans'),
+            func.avg(SurveyResponse.restless_ans).label('restless_ans'),
+            func.avg(SurveyResponse.depressed_ans).label('depressed_ans'),
+            func.avg(SurveyResponse.effort_ans).label('effort_ans'),
+            func.avg(SurveyResponse.worthless_ans).label('worthless_ans'),
+            
+            # Growth mindset questions
+            func.avg(SurveyResponse.intelligence1_ans).label('intelligence1_ans'),
+            func.avg(SurveyResponse.intelligence2_ans).label('intelligence2_ans'),
+
+            # Gender norms questions
+            func.avg(SurveyResponse.man_chores_opinion).label('man_chores_opinion'),
+            func.avg(SurveyResponse.man_violence_opinion).label('man_violence_opinion'),
+            func.avg(SurveyResponse.man_sexual_opinion).label('man_sexual_opinion'),
+            func.avg(SurveyResponse.man_fears_opinion).label('man_fears_opinion'),
+            func.avg(SurveyResponse.gay_man_opinion).label('gay_man_opinion'),
+            
+            # Social attitude questions
+            func.avg(SurveyResponse.soft_sport_boys_ans).label('soft_sport_boys_ans'),
+            func.avg(SurveyResponse.gender_diff_ans).label('gender_diff_ans'),
+            func.avg(SurveyResponse.nerds_ans).label('nerds_ans'),
+            func.avg(SurveyResponse.men_better_stem_ans).label('men_better_stem_ans')
+        ).first()
+        
+        # Convert to dictionary and handle None values
+        averages = {k: v if v is not None else 0 for k, v in result._asdict().items()}
+        
+        # Create mapping of column names to display labels
+        label_mapping = {
+            'comfortability_ans': 'School Comfort',
+            'isolated_school_ans': 'School Isolation',
+            'criticise_school_ans': 'School Criticism',
+            'opinion_school_ans': 'School Opinion Voice',
+            'bullying_ans': 'Bullying Experience',
+            'future_ans': 'Future Outlook',
+            'covid_ans': 'COVID Impact',
+            'how_happy_ans': 'Happiness',
+            'nervous_ans': 'Nervousness',
+            'hopeless_ans': 'Hopelessness',
+            'restless_ans': 'Restlessness',
+            'depressed_ans': 'Depression',
+            'effort_ans': 'Life Effort',
+            'worthless_ans': 'Worthlessness',
+            'intelligence1_ans': 'Intelligence Fixed Mindset',
+            'intelligence2_ans': 'Intelligence Growth Mindset',
+            'man_chores_opinion': 'Men in Chores Opinion',
+            'man_violence_opinion': 'Men & Violence Opinion',
+            'man_sexual_opinion': 'Men & Sexuality Opinion',
+            'man_fears_opinion': 'Men Expressing Fears',
+            'gay_man_opinion': 'Gay Men Opinion',
+            'soft_sport_boys_ans': 'Soft Sports for Boys',
+            'gender_diff_ans': 'Gender Differences',
+            'nerds_ans': 'Nerds Perception',
+            'men_better_stem_ans': 'Men Better at STEM'
+        }
+        
+        # Transform into final response format
+        response_data = []
+        for col_name, avg_value in averages.items():
+            if col_name in label_mapping:
+                value = float(avg_value)
+                if col_name in negative_sentiment_columns:
+                    value *= -1
+                
+                response_data.append({
+                    "label": label_mapping[col_name],
+                    "value": round(value, 1)
+                })
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/graph1', methods=['GET'])
+@either_login_required
+def get_descriptive_stats():
+    db = SessionLocal()
+    try:
+        total_students = db.query(Students).count()
+        completed = db.query(SurveyResponse.student_id).distinct().count()
+        not_completed = total_students - completed
+
+        return jsonify([
+            {"label": "Total Students", "value": total_students},
+            {"label": "Completed Survey", "value": completed},
+            {"label": "Not Completed Survey", "value": not_completed},
+        ]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/graph2', methods=['GET'])
+@either_login_required
+def graph2():
+    db = SessionLocal()
+    try:
+        averages = db.query(
+            func.avg(CalculatedScores.academic_engagement_score).label("Academic Engagement"),
+            func.avg(CalculatedScores.academic_wellbeing_score).label("Academic Wellbeing"),
+            func.avg(CalculatedScores.mental_health_score).label("Mental Health"),
+            func.avg(CalculatedScores.growth_mindset_score).label("Growth Mindset"),
+            func.avg(CalculatedScores.gender_norm_score).label("Gender Norms"),
+            func.avg(CalculatedScores.social_attitude_score).label("Social Attitude"),
+            func.avg(CalculatedScores.school_environment_score).label("School Environment")
+        ).first()
+
+        result = {
+            "labels": list(averages._fields),
+            "datasets": [{
+                "label": "Average Score",
+                "data": [round(getattr(averages, field), 2) for field in averages._fields],
+                "backgroundColor": "rgba(75, 192, 192, 0.6)"
+            }]
+        }
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@teacher_login_required
+@survey_routes.route('/api/graph3', methods=['GET'])
+@either_login_required
+def graph3():
+    db = SessionLocal()
+    try:
+        results = (
+            db.query(Relationships.link_type, func.count().label('count'))
+            .group_by(Relationships.link_type)
+            .all()
+        )
+
+        return jsonify({
+            "labels": [r.link_type for r in results],
+            "datasets": [{
+                "label": "Link Types",
+                "data": [r.count for r in results],
+                "backgroundColor": [
+                    "rgba(75, 192, 192, 0.6)",
+                    "rgba(153, 102, 255, 0.6)",
+                    "rgba(255, 206, 86, 0.6)",
+                    "rgba(255, 99, 132, 0.6)",
+                    "rgba(54, 162, 235, 0.6)",
+                    "rgba(201, 203, 207, 0.6)"
+                ]
+            }]
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@either_login_required
+@survey_routes.route('/api/student-relationships', methods=['GET'])
+def get_student_relationships():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        if not student_id:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        # Fetch all relationship links for this student
+        rels = db.query(Relationships).filter_by(source=student_id).all()
+        categorized = {}
+
+        for q in ['friends', 'advice', 'disrespect', 'popular', 'more_time', 'feedback']:
+            filtered = [r for r in rels if r.link_type == q]
+            categorized[q] = [{"value": r.target, "label": f"Student {r.target}"} for r in filtered]
+
+        # Fetch student feedback (optional)
+        feedback = db.query(Feedback).filter_by(student_id=student_id).first()
+        student_feedback = feedback.student_feedback if feedback else ""
+
+        return jsonify({
+            "relationships": categorized,
+            "student_feedback": student_feedback
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@either_login_required
+@survey_routes.route('/api/student-relationships', methods=['OPTIONS','POST'])
+def update_student_relationships():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        data = request.get_json() or {}
+
+        # 1) Build the “new” set from the incoming payload
+        #    Expecting: { relationships: [ { source_id, target_id, link_type }, … ] }
+        raw = data.get('relationships', [])
+        new_set = set(
+            (r['link_type'], r['target_id'])
+            for r in raw
+            if 'link_type' in r and 'target_id' in r
+        )
+
+        # 2) Load the existing set from the DB
+        existing = db.query(Relationships).filter_by(source=student_id).all()
+        existing_set = set((r.link_type, r.target) for r in existing)
+
+        # 3) If nothing changed, bail out early
+        if new_set == existing_set:
+            return jsonify({"message": "No changes to relationships."}), 200
+
+        # 4) Otherwise delete the old and insert the new
+        db.query(Relationships).filter_by(source=student_id).delete()
+        for link_type, target in new_set:
+            db.add(Relationships(
+                source=student_id,
+                target=target,
+                link_type=link_type
+            ))
+
+        db.commit()
+        return jsonify({"message": "Relationships updated."}), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+
+
+@either_login_required
+@survey_routes.route('/api/feedback', methods=['POST'])
+def submit_student_feedback():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        data = request.get_json()
+        text = data.get('student_feedback', '')
+
+        existing = db.query(Feedback).filter_by(student_id=student_id).first()
+        if existing:
+            existing.student_feedback = text
+        else:
+            new = Feedback(student_id=student_id, student_feedback=text)
+            db.add(new)
+
+        db.commit()
+        return jsonify({"message": "Feedback saved successfully"}), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@either_login_required
+@survey_routes.route('/api/teacher-feedbacks', methods=['GET'])
+def get_teacher_feedbacks():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        feedbacks = db.query(Feedback).filter_by(student_id=student_id).filter(Feedback.teacher_feedback != None).all()
+
+        results = [{
+            "teacher_id": f.teacher_id,
+            "teacher_feedback": f.teacher_feedback
+        } for f in feedbacks]
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
