@@ -1196,7 +1196,7 @@ def get_student_relationships():
         db.close()
 
 @either_login_required
-@survey_routes.route('/api/student-relationships', methods=['OPTIONS','POST'])
+@survey_routes.route('/api/student-relationships', methods=['POST'])
 def update_student_relationships():
     db = SessionLocal()
     try:
@@ -1249,13 +1249,22 @@ def submit_student_feedback():
         student_id = session.get('user_id')
         data = request.get_json()
         text = data.get('student_feedback', '')
-
+        is_happy = data.get('is_happy', None)
+        print("🧠 Feedback received:", text)
+        print("✅ is_happy value:", is_happy)
+        # Insert or update feedback
         existing = db.query(Feedback).filter_by(student_id=student_id).first()
         if existing:
             existing.student_feedback = text
         else:
             new = Feedback(student_id=student_id, student_feedback=text)
             db.add(new)
+
+        # ✅ Update reallocation field if student answered is_happy
+        if is_happy is not None:
+            alloc = db.query(Allocations).filter_by(student_id=student_id).first()
+            if alloc:
+                alloc.reallocation = 1 if is_happy else 0
 
         db.commit()
         return jsonify({"message": "Feedback saved successfully"}), 200
@@ -1266,6 +1275,7 @@ def submit_student_feedback():
     finally:
         db.close()
 
+
 @either_login_required
 @survey_routes.route('/api/teacher-feedbacks', methods=['GET'])
 def get_teacher_feedbacks():
@@ -1275,12 +1285,84 @@ def get_teacher_feedbacks():
         feedbacks = db.query(Feedback).filter_by(student_id=student_id).filter(Feedback.teacher_feedback != None).all()
 
         results = [{
+            "student_id": f.student_id,
             "teacher_id": f.teacher_id,
             "teacher_feedback": f.teacher_feedback
         } for f in feedbacks]
 
         return jsonify(results), 200
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/all-feedback-submitted', methods=['GET'])
+def get_all_students_with_feedback():
+    db = SessionLocal()
+    try:
+        feedbacks = (
+            db.query(Feedback.student_id, Students.first_name, Students.last_name, Students.email)
+            .join(Students, Feedback.student_id == Students.student_id)
+            .filter(Feedback.student_feedback != None)
+            .all()
+        )
+        result = [{
+            "student_id": sid,
+            "name": f"{fn} {ln}",
+            "email": email
+        } for sid, fn, ln, email in feedbacks]
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/teacher-feedback', methods=['POST'])
+def submit_teacher_feedback():
+    db = SessionLocal()
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        teacher_feedback = data.get('teacher_feedback')
+        teacher_id = session.get('user_id')
+
+        if not student_id or not teacher_feedback:
+            return jsonify({"error": "Missing required fields"}), 400
+
+        feedback = db.query(Feedback).filter_by(student_id=student_id).first()
+        if feedback:
+            feedback.teacher_feedback = teacher_feedback
+            feedback.teacher_id = teacher_id
+        else:
+            new = Feedback(
+                student_id=student_id,
+                teacher_feedback=teacher_feedback,
+                teacher_id=teacher_id
+            )
+            db.add(new)
+
+        db.commit()
+        return jsonify({"message": "Teacher feedback saved"}), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/student-feedback/<int:student_id>', methods=['GET'])
+def get_student_feedback(student_id):
+    db = SessionLocal()
+    try:
+        feedback = db.query(Feedback).filter_by(student_id=student_id).first()
+        if feedback:
+            return jsonify({
+                "student_feedback": feedback.student_feedback
+            }), 200
+        return jsonify({"student_feedback": ""}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:

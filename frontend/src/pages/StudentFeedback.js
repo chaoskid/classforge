@@ -28,6 +28,7 @@ export default function StudentFeedback() {
   const [formData, setFormData]               = useState({});
   const [studentFeedback, setStudentFeedback] = useState('');
   const [teacherFeedback, setTeacherFeedback] = useState('');
+  const [isHappy, setIsHappy] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -98,6 +99,11 @@ export default function StudentFeedback() {
   // SAVE: feedback first, then relationships
 const handleSubmit = async () => {
   try {
+    await axios.post('/api/feedback', {
+  student_feedback: studentFeedback,
+  is_happy: isHappy  // send boolean flag
+}, { withCredentials: true });
+
     // 1) Save student feedback
     await axios.post('/api/feedback', {
       student_feedback: studentFeedback
@@ -155,6 +161,24 @@ const handleSubmit = async () => {
                 />
               </FormControl>
             ))}
+            <FormControl isRequired>
+               <FormLabel>Do you want to request for a reallocation?</FormLabel>
+               <Box>
+                   <Button
+                      colorScheme={isHappy === true ? 'teal' : 'gray'}
+                      onClick={() => setIsHappy(true)}
+                     mr={4}
+                   >
+                  Yes
+                </Button>feedback.js = 
+                 <Button
+                     colorScheme={isHappy === false ? 'red' : 'gray'}
+                     onClick={() => setIsHappy(false)}
+                 >
+                 No
+                </Button>
+                </Box>
+               </FormControl>
 
             <FormControl>
               <FormLabel>Your Feedback (to teacher)</FormLabel>
