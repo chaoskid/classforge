@@ -170,7 +170,7 @@ const handleSubmit = async () => {
                      mr={4}
                    >
                   Yes
-                </Button>feedback.js = 
+                </Button>
                  <Button
                      colorScheme={isHappy === false ? 'red' : 'gray'}
                      onClick={() => setIsHappy(false)}
