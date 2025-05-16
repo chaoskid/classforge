@@ -143,7 +143,7 @@ export default function StudentAllocationSetup() {
 
             <HStack spacing={4} align="center">
               <Text fontSize="xl" fontWeight="semibold">
-                Number of Unallocated Students: {unallocatedStudents}
+                Number of Students: {unallocatedStudents}
               </Text>
             </HStack>
 

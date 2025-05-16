@@ -440,13 +440,14 @@ const Allocations = () => {
       bg="white"
       textAlign="left"
     >
-      <VStack align="stretch" spacing={4}>
+      <VStack align="stretch" spacing={2}>
         {stats.map((stat, i) => (
           <Stat key={i}>
-            <StatLabel fontSize="lg">{stat.label}</StatLabel>
-            <StatNumber fontSize="2xl" color="blue.700">
+            <StatLabel fontSize="l">{stat.label}
+            <StatNumber fontSize="xl" color="blue.700">
               {stat.value}
             </StatNumber>
+            </StatLabel>
           </Stat>
         ))}
       </VStack>
@@ -479,7 +480,7 @@ const Allocations = () => {
             <Button colorScheme="blue" onClick={handleManualOverride}>
               Manual Override
             </Button>
-            <Button colorScheme="blue" onClick={() => handleInProgress('Reallocation Pool')}>
+            <Button colorScheme="blue" onClick={() => navigate('/reallocations')}>
               Re-allocation Pool
             </Button>
             <Button colorScheme="blue" onClick={() => handleInProgress('Feedback')}>

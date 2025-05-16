@@ -11,7 +11,7 @@ from auth import student_login_required, teacher_login_required, either_login_re
 from werkzeug.security import check_password_hash
 from sqlalchemy import func, desc
 from survey_questions import SURVEY_QUESTION_MAP
-from model_utils import get_non_relationship_ids,returnRgcnLinkPred,generate_dataframes, map_link_types, map_student_ids, create_data_object, save_allocation_summary, save_allocations, generate_target_matrix, generate_dataframes_by_classid
+from model_utils import *
 from model.dqn.allocation_env import precompute_link_matrices
 from model.dqn.train_predict import train_and_allocate, returnEnvAndAgent, allocate_with_existing_model
 from model.rgcn.predict_link import predict_links
@@ -279,7 +279,7 @@ def stage_allocation():
             if not teacher:
                 return jsonify({"message": "Invalid teacher account"}), 401
             unit_id = teacher.manage_unit
-            student_id_rows = db.query(Allocations.student_id).filter_by(unit_id=unit_id, reallocation=0).all()
+            student_id_rows = db.query(Allocations.student_id).filter_by(unit_id=unit_id).all()
             student_ids = [row[0] for row in student_id_rows]
             if not student_ids:
                 return jsonify({"message": "No students allocated to this unit"}), 401
@@ -1088,11 +1088,14 @@ def get_descriptive_stats():
         total_students = db.query(Students).count()
         completed = db.query(SurveyResponse.student_id).distinct().count()
         not_completed = total_students - completed
+        unallocated = db.query(Allocations.student_id).filter_by(unit_id=None).count()
+        reallocation = db.query(Allocations.student_id).filter_by(reallocation=1).count()
 
         return jsonify([
             {"label": "Total Students", "value": total_students},
-            {"label": "Completed Survey", "value": completed},
             {"label": "Not Completed Survey", "value": not_completed},
+            {"label": "Total Unallocated Students", "value": unallocated},
+            {"label": "Total Reallocations Requested", "value": reallocation}
         ]), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1163,3 +1166,198 @@ def graph3():
     finally:
         db.close()
     
+
+@survey_routes.route('/api/reallocate', methods=['GET', 'POST'])
+@either_login_required
+def reallocate():
+    db = SessionLocal()
+    try:
+        # Identify the unit for the logged‐in teacher
+        user_id = session.get('user_id')
+        teacher = db.query(Teachers).filter_by(emp_id=user_id).one()
+        unit_id = teacher.manage_unit
+        # --- GET: list pending reallocation requests ---
+        if request.method == 'GET':
+            rows = (
+                db.query(
+                    Allocations.student_id,
+                    Allocations.class_id,
+                    Students.first_name,
+                    Students.last_name
+                )
+                .join(Students, Students.student_id == Allocations.student_id)
+                .filter(
+                    Allocations.unit_id == unit_id,
+                    Allocations.reallocation == 1
+                )
+                .all()
+            )
+            result = [
+                {
+                    'student_id': sid,
+                    'current_class': cls,
+                    'first_name': fn,
+                    'last_name': ln
+                }
+                for sid, cls, fn, ln in rows
+            ]
+            return jsonify(result), 200
+        # --- POST: perform reallocation of only the requested students ---
+        # 1) Fetch the pool of student_ids
+        pool_details = (
+            db.query(
+                Allocations.student_id,
+                Allocations.class_id.label('old_class'),
+                Students.first_name,
+                Students.last_name
+            )
+            .join(Students, Students.student_id == Allocations.student_id)
+            .filter(
+                Allocations.unit_id == unit_id,
+                Allocations.reallocation == 1
+            )
+            .all()
+        )
+        reassign_ids = {row.student_id for row in pool_details}
+        if not reassign_ids:
+            return jsonify({'message': 'No pending reallocation requests.'}), 200
+        # 2) Read allocation summary to get num_classes and target_feature_avgs
+        summary_rows = (
+            db.query(AllocationsSummary)
+              .filter_by(unit_id=unit_id)
+              .order_by(AllocationsSummary.class_id)
+              .all()
+        )
+        num_classes = len(summary_rows)
+        print('\n****************** Num Classes: ', num_classes)
+        target_attrs = [
+            'target_academic_engagement_score',
+            'target_academic_wellbeing_score',
+            'target_mental_health_score',
+            'target_growth_mindset_score',
+            'target_gender_norm_score',
+            'target_social_attitude_score',
+            'target_school_environment_score'
+        ]
+        target_vals = [
+        [float(getattr(r, attr)) for attr in target_attrs]
+        for r in summary_rows
+        ]
+        target_feature_avgs = np.array(target_vals, dtype=float)
+        print('\n****************** Target Features: ', target_feature_avgs)
+        # 3) Load all students' scores & relationships and build data object
+        #    generate_dataframes returns (unit_id, scores_df, relationships_df)
+        _, scores_df, rel_df = generate_dataframes(db, user_id)
+        rel_df = map_link_types(rel_df)
+        scores_df, edges_df, id_map = map_student_ids(scores_df, rel_df)
+        data_obj = create_data_object(scores_df, edges_df)
+        print('\n****************** Data Object: ', data_obj)
+        E = precompute_link_matrices(data_obj)
+        print('\n****************** E : ', E)
+        student_data = data_obj.x.cpu().numpy()
+        print('\n****************** Student Data: ', student_data)
+        target_class_size = math.ceil(student_data.shape[0] / num_classes)
+        print('\n******************  Target Class Size: ', target_class_size)
+        # 4) Initialize env & agent
+        model_path = f"model/dqn/d{num_classes}.pth"
+        env, agent = returnEnvAndAgent(
+            student_data,
+            num_classes,
+            target_class_size,
+            target_feature_avgs,
+            E,
+            model_path
+        )
+        print('\n******************  Env : ', env)
+        # 5) Seed the env with existing allocations
+        alloc_rows = (
+            db.query(Allocations.student_id, Allocations.class_id)
+              .filter_by(unit_id=unit_id)
+              .all()
+        )
+        seed_env_from_existing_allocations(env, alloc_rows, id_map, student_data,reassign_ids)
+        print("\n******************  Environment state after seeding:")
+        print(env.state)
+        # 6) Reallocate only pool students
+        allocation_summary,updates = reallocate_pool_students(
+            env, agent, reassign_ids, id_map, student_data,unit_id
+        )
+        print("\n******************  Update after reallocations: ", updates)
+        print("\n******************  Allocation summary: ", allocation_summary)
+        # 7) Persist only those updates and clear their reallocation flag
+        updated_count = save_reallocation_updates(db, unit_id, updates, id_map)
+        save_allocation_summary(unit_id, allocation_summary, db)
+        updated_students = []
+        for sid, old_cls, fn, ln in pool_details:
+            idx = id_map.get(sid)
+            if idx is None or idx not in updates:
+                continue
+            new_cls = updates[idx]
+            updated_students.append({
+                'student_id': sid,
+                'first_name': fn,
+                'last_name': ln,
+                'old_class': old_cls,
+                'new_class': new_cls
+            })
+
+        # 4) Return message, count, and the detailed list
+        return jsonify({
+            'message': f'Reallocated {updated_count} student(s).',
+            'updated_records': updated_count,
+            'updated_students': updated_students
+        }), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        db.close()
+
+
+# Test Route - CAN BE REMOVED LATER
+@teacher_login_required
+@survey_routes.route('/api/push-reallocations', methods=['POST'])
+def push_reallocations():
+    data = request.get_json() or {}
+    count = data.get('count')
+    if not isinstance(count, int) or count <= 0:
+        return jsonify({'error': '`count` must be a positive integer'}), 400
+
+    db = SessionLocal()
+    try:
+        # 1. Get how many are available to reallocate
+        total_available = db.query(Allocations).filter(Allocations.reallocation == 0).count()
+        if count > total_available:
+            return jsonify({
+                'error': f'Requested count {count} exceeds available records {total_available}'
+            }), 400
+
+        # 2. Pick `count` rows at random using ORDER BY random() LIMIT count
+        #    (safer on large tables than pulling .all() into Python)
+        candidates = (
+            db.query(Allocations)
+              .filter(Allocations.reallocation == 0)
+              .order_by(func.random())
+              .limit(count)
+              .all()
+        )
+
+        updated = []
+        for alloc in candidates:
+            alloc.reallocation = 1
+            updated.append({
+                'unit_id': alloc.unit_id,
+                'student_id': alloc.student_id
+            })
+
+        db.commit()
+        return jsonify({'updated': updated}), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        db.close()

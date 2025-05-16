@@ -206,7 +206,6 @@ def returnEnvAndAgent(student_data, num_classes, target_class_size, target_featu
     agent.model.eval()
     # deterministic policy
     agent.epsilon = 0.0
-
     return env, agent
 
 

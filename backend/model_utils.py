@@ -1,5 +1,6 @@
 
 import json
+import random
 import numpy as np
 import pandas as pd
 from flask import Blueprint, request, jsonify, session
@@ -7,13 +8,14 @@ from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Re
 import torch
 from torch_geometric.data import Data
 from model.rgcn.rgcn_linkpred import InductiveRGCN, LinkPredictor
+from model.dqn.train_predict import *
 
 def generate_dataframes(db, user_id):
     teacher = db.query(Teachers).filter_by(emp_id=user_id).first()
     if not teacher:
         return jsonify({"message": "Invalid teacher account"}), 401
     unit_id = teacher.manage_unit
-    student_id_rows = db.query(Allocations.student_id).filter_by(unit_id=unit_id, reallocation=0).all()
+    student_id_rows = db.query(Allocations.student_id).filter_by(unit_id=unit_id).all()
     student_ids = [row[0] for row in student_id_rows]
     if not student_ids:
         return jsonify({"message": "No students allocated to this unit"}), 401
@@ -259,3 +261,64 @@ def get_non_relationship_ids(data, idmap, source_id):
     non_neighbors = sorted(all_indices - neighbors - {source_idx})
 
     return non_neighbors
+
+
+
+def seed_env_from_existing_allocations(env, alloc_rows, id_map, student_data, pool_ids=None):
+
+    env.state = env._init_state()
+    for sid, cls in alloc_rows:
+        # skip seeding any student who's up for reallocation
+        if pool_ids and sid in pool_ids:
+            continue
+        idx = id_map[sid]
+        features = student_data[idx]
+        env._update_state(cls, features, idx)
+
+
+def reallocate_pool_students(env, agent, pool_ids, id_map, student_data, unit_id):
+    # now pool_ids is the set of real student_ids
+    pool_idx = [id_map[sid] for sid in pool_ids if sid in id_map]
+    updates = {}
+    for idx in random.sample(pool_idx, len(pool_idx)):
+        state_vec = env.get_state()
+        new_class = agent.act(state_vec)
+        env.step(student_data[idx], new_class, idx)
+        updates[idx] = new_class
+
+    # rebuild summary based on the *new* state
+    allocation_summary = build_allocation_summary(
+        env, env.target_feature_avgs, unit_id, env.E
+    )
+    return allocation_summary, updates
+
+
+def save_reallocation_updates(db, unit_id, updates, id_map):
+
+    inv_map = {v: int(k) for k, v in id_map.items()}
+    count = 0
+
+    for idx, new_class in updates.items():
+        sid = inv_map[idx]
+        print(type(sid), sid)
+        print(type(new_class), new_class)
+        alloc = (
+            db.query(Allocations)
+              .filter_by(unit_id=unit_id, student_id=sid)
+              .one_or_none()
+        )
+        if alloc:
+            alloc.class_id     = new_class
+            alloc.reallocation = 0
+        else:
+            alloc = Allocations(
+                unit_id      = unit_id,
+                student_id   = sid,
+                class_id     = new_class,
+                reallocation = 0
+            )
+            db.add(alloc)
+        count += 1
+
+    db.commit()
+    return count
