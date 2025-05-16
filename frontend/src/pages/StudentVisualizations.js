@@ -61,6 +61,7 @@ export default function StudentVisualization() {
 
   // Compute retention once studentDetails loads
   useEffect(() => {
+    setSearching(true);
     if (
       studentDetails.relationships &&
       studentDetails.classmates
@@ -74,6 +75,7 @@ export default function StudentVisualization() {
       const pct = positiveLinks.length > 0 ? retainedLinks.length / positiveLinks.length : 0;
       setRetention(pct);
     }
+    setSearching(false);
   }, [studentDetails]);
 
   if (loading) {
@@ -124,7 +126,7 @@ export default function StudentVisualization() {
             
             <>
             {searching ?(<Spinner size="xl" />):(
-              <>
+              
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={4}>
                 {/* Friendship Retention */}
                 <Box p={4} borderWidth="1px" borderRadius="lg" bg="gray.50">
@@ -215,7 +217,7 @@ export default function StudentVisualization() {
                   )}
                 </Box>
               </SimpleGrid>
-              </>
+              
             )}
             </>
           )}
