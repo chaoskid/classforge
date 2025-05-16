@@ -9,7 +9,9 @@ import { Box,
   Tbody,
   Tr,
   Td,
-  SimpleGrid } from '@chakra-ui/react';
+  SimpleGrid,
+  Spinner
+ } from '@chakra-ui/react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import axios from '../pages/axiosConfig';
@@ -30,6 +32,7 @@ const StudentDashboard = () => {
   const [retention, setRetention] = useState(0);
   const [allClubs, setAllClubs] = useState([]);
   const [popularClubs, setPopularClubs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
@@ -40,6 +43,7 @@ const StudentDashboard = () => {
         }
       }).catch(err => console.error(err));
       
+      setLoading(true);
       axios.get('/api/student-info', { withCredentials: true })
     .then(res => {
       if (res.status === 200) {
@@ -68,7 +72,10 @@ const StudentDashboard = () => {
   
         setPopularClubs(sorted);
       })
-      .catch(err => console.error(err));
+      .catch(err => console.error(err))
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
   
   
@@ -104,7 +111,19 @@ const StudentDashboard = () => {
     }
   }, [studentDetails]);
   
-
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
+          <Spinner size="xl" />
+        </Box>
+        <Footer />
+      </>
+    );
+  }
   return (
     <>
       <Navbar />
@@ -155,16 +174,6 @@ const StudentDashboard = () => {
   <Box w="100%" maxW="500px" mx="auto" h="400px">
     <StudentRadarChart scores={studentDetails.student.scores} />
   </Box>
-  {studentDetails?.clubs && (
-  <Box mt={10}>
-    <Heading size="md" mb={4}>Club Participation</Heading>
-    <ClubParticipationDonut 
-  studentClubs={studentDetails.clubs} 
-  popularClubs={popularClubs}
-  allClubs={allClubs}
-/>
-  </Box>
-)}
 
 </Box>
 )}

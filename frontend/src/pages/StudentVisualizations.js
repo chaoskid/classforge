@@ -7,7 +7,8 @@ import {
   Select,
   Button,
   SimpleGrid,
-  Flex
+  Flex,
+  Spinner,
 } from '@chakra-ui/react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -28,45 +29,34 @@ export default function StudentVisualization() {
   const [allClubs, setAllClubs] = useState([]);
   const [popularClubs, setPopularClubs] = useState([]);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+  
 
   // Load list of students for dropdown
   useEffect(() => {
+    setLoading(true);
     axios.get('/api/students-and-classes')
       .then(res => {
         setStudents(res.data.students || []);
       })
-      .catch(console.error);
+      .catch(console.error).finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   // Fetch student details and clubs when a student is selected
   useEffect(() => {
     if (!selectedStudent) return;
-
+    setSearching(true);
     // Student info (teacher endpoint)
     axios.get(`/api/student-info/${selectedStudent}`)
       .then(res => {
         setStudentDetails(res.data);
       })
-      .catch(console.error);
-
-    // All clubs for participation donut
-    axios.get('/api/clubs')
-      .then(res => {
-        const all = res.data || [];
-        setAllClubs(all);
-
-        // Determine top 5 popular clubs
-        const clubCount = {};
-        all.forEach(c => {
-          clubCount[c.club_name] = (clubCount[c.club_name] || 0) + 1;
-        });
-        const sorted = Object.entries(clubCount)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .map(([name]) => name);
-        setPopularClubs(sorted);
-      })
-      .catch(console.error);
+      .catch(console.error).finally(() => {
+        setSearching(false);
+      });
   }, [selectedStudent]);
 
   // Compute retention once studentDetails loads
@@ -85,6 +75,20 @@ export default function StudentVisualization() {
       setRetention(pct);
     }
   }, [studentDetails]);
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
+          <Spinner size="xl" />
+        </Box>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
@@ -111,13 +115,16 @@ export default function StudentVisualization() {
               ))}
             </Select>
           </Box>
-
+          
           {!selectedStudent ? (
             <Text fontSize="lg" color="gray.500">
               Please select a student to view visualizations.
             </Text>
           ) : (
+            
             <>
+            {searching ?(<Spinner size="xl" />):(
+              <>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={4}>
                 {/* Friendship Retention */}
                 <Box p={4} borderWidth="1px" borderRadius="lg" bg="gray.50">
@@ -208,6 +215,8 @@ export default function StudentVisualization() {
                   )}
                 </Box>
               </SimpleGrid>
+              </>
+            )}
             </>
           )}
         </Container>
