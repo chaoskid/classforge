@@ -21,6 +21,8 @@ import {
   Stat,
   StatLabel,
   StatNumber,
+  Spinner,
+  Text,
 } from '@chakra-ui/react';
 import { Line, Bar, Pie } from 'react-chartjs-2';
 import {
@@ -321,6 +323,7 @@ const Allocations = () => {
   React.useEffect(() => {
     const fetchGraphs = async () => {
       try {
+        setLoading(true);
         // Fetch top clubs data for graph 3
         const res3 = await axios.get('/api/top-clubs');
         const topClubs = res3.data;
@@ -388,6 +391,8 @@ const Allocations = () => {
 
       } catch (err) {
         console.error('API Error:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -402,6 +407,20 @@ const Allocations = () => {
     navigate('/manual-override');
   };
   const handleInProgress = (section) => alert(`${section} page is in progress`);
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
+          <Spinner size="xl" />
+        </Box>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
@@ -421,13 +440,14 @@ const Allocations = () => {
       bg="white"
       textAlign="left"
     >
-      <VStack align="stretch" spacing={4}>
+      <VStack align="stretch" spacing={2}>
         {stats.map((stat, i) => (
           <Stat key={i}>
-            <StatLabel fontSize="lg">{stat.label}</StatLabel>
-            <StatNumber fontSize="2xl" color="blue.700">
+            <StatLabel fontSize="l">{stat.label}
+            <StatNumber fontSize="xl" color="blue.700">
               {stat.value}
             </StatNumber>
+            </StatLabel>
           </Stat>
         ))}
       </VStack>
@@ -460,7 +480,7 @@ const Allocations = () => {
             <Button colorScheme="blue" onClick={handleManualOverride}>
               Manual Override
             </Button>
-            <Button colorScheme="blue" onClick={() => handleInProgress('Reallocation Pool')}>
+            <Button colorScheme="blue" onClick={() => navigate('/reallocations')}>
               Re-allocation Pool
             </Button>
             <Button colorScheme="blue" onClick={() => navigate('/teacher-feedback')}>

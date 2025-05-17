@@ -6,6 +6,8 @@ import {
 import axios from './axiosConfig';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { useNavigate } from 'react-router-dom';
+
 
 export default function TeacherFeedbackPage() {
   const [students, setStudents] = useState([]);
@@ -13,6 +15,8 @@ export default function TeacherFeedbackPage() {
   const [feedbackText, setFeedbackText] = useState('');
   const [studentFeedback, setStudentFeedback] = useState('');
   const toast = useToast();
+  const navigate = useNavigate();
+
 
   // Load students who submitted feedback
   useEffect(() => {
@@ -67,6 +71,9 @@ export default function TeacherFeedbackPage() {
       <Navbar />
       <Box bg="gray.100" minH="100vh" py={10}>
         <Container maxW="3xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
+          <Button colorScheme="blue" onClick={() => navigate(-1)}>
+                          Back
+                        </Button>
           <Heading size="lg" mb={6}>Submit Feedback to Students</Heading>
           <VStack spacing={6}>
             <Select
@@ -96,8 +103,9 @@ export default function TeacherFeedbackPage() {
               onChange={e => setFeedbackText(e.target.value)}
             />
             <Button colorScheme="teal" onClick={handleSubmit}>
-              Submit Feedback
+              Submit
             </Button>
+
           </VStack>
         </Container>
       </Box>

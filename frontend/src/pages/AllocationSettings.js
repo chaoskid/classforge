@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Container, Heading, Button, HStack, Text, VStack,
-  SimpleGrid, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Input
+  SimpleGrid, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Input, Spinner
 } from '@chakra-ui/react';
 import axios from '../pages/axiosConfig';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,7 @@ const targetScores = [
 
 export default function StudentAllocationSetup() {
   const [loading, setLoading] = useState(false);
+  const [allocating, setAllocating] = useState(false);
   const [unallocatedStudents, setUnallocatedStudents] = useState(0);
   const [numClasses, setNumClasses] = useState(null);
   const [studentsPerClass, setStudentsPerClass] = useState(null);
@@ -33,11 +34,14 @@ export default function StudentAllocationSetup() {
   useEffect(() => {
     async function fetchStage() {
       try {
+        setLoading(true)
         const response = await axios.get('/api/stage_allocation');
         setUnallocatedStudents(response.data.number_of_unallocated_students);
         setGlobalAverages(response.data.global_averages);
       } catch (err) {
         console.error('Stage allocation fetch failed:', err);
+      } finally {
+        setLoading(false);
       }
     }
     fetchStage();
@@ -79,8 +83,7 @@ export default function StudentAllocationSetup() {
       alert('Please select the number of classes');
       return;
     }
-    setLoading(true);
-
+    setAllocating(true);
     const payload = {
       model_path: modelPath,
       num_classes: numClasses,
@@ -106,9 +109,24 @@ export default function StudentAllocationSetup() {
       console.error('Allocation error:', err);
       alert('Allocation failed.');
     } finally {
-      setLoading(false);
+      setAllocating(false);
     }
   };
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
+          <Spinner size="xl" />
+        </Box>
+        <Footer />
+      </>
+    );
+  }
+
 
   return (
     <>
@@ -125,7 +143,7 @@ export default function StudentAllocationSetup() {
 
             <HStack spacing={4} align="center">
               <Text fontSize="xl" fontWeight="semibold">
-                Number of Unallocated Students: {unallocatedStudents}
+                Number of Students: {unallocatedStudents}
               </Text>
             </HStack>
 
@@ -221,12 +239,20 @@ export default function StudentAllocationSetup() {
             <Button
               colorScheme="green"
               onClick={handleAllocate}
-              isLoading={loading}
+              isLoading={allocating}
               isDisabled={!numClasses}
             >Allocate Students</Button>
+            {/* conditional message */}
+            {allocating && (
+              <Text fontSize="sm" color="gray.500" textAlign="center" mt={2}>
+                Our database is on a free tier and can be a bit slow—hang on tight, 
+                this may take a moment!
+              </Text>
+            )}
           </VStack>
         </Container>
       </Box>
+      
       <Footer />
     </>
   );

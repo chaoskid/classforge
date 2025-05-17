@@ -147,6 +147,9 @@ const handleSubmit = async () => {
       <Navbar/>
       <Box bg="gray.100" minH="100vh" py={10}>
         <Container maxW="6xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
+          <Button colorScheme="blue" onClick={() => navigate(-1)}>
+                          Back
+                        </Button>
           <Heading size="lg" mb={6}>Update Social Network & Submit Feedback</Heading>
           <VStack spacing={6} align="stretch">
             {networkQuestions.map(q => (
