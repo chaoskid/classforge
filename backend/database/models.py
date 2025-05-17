@@ -162,3 +162,13 @@ class Clubs(Base):
     club_id = Column(Integer, primary_key = True)
     club_name = Column(String)
 
+class Feedback(Base):
+    __tablename__ = "feedback"
+
+    feedback_id = Column(Integer, primary_key=True, autoincrement=True)
+    student_id = Column(Integer, ForeignKey("students.student_id"), nullable=False)
+    teacher_id = Column(Integer, ForeignKey("teachers.emp_id"), nullable=True)
+    student_feedback = Column(Text, nullable=True)
+    teacher_feedback = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

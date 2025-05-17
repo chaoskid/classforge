@@ -483,9 +483,10 @@ const Allocations = () => {
             <Button colorScheme="blue" onClick={() => navigate('/reallocations')}>
               Re-allocation Pool
             </Button>
-            <Button colorScheme="blue" onClick={() => handleInProgress('Feedback')}>
+            <Button colorScheme="blue" onClick={() => navigate('/teacher-feedback')}>
               Feedback
             </Button>
+
           </SimpleGrid>
 
           {/* Students Options */}
