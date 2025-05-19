@@ -338,6 +338,8 @@ export default function ClassVisualizations() {
                       nodeLabel={node => `${node.first_name} ${node.last_name}`}
                       nodeRelSize={8}
                       nodeAutoColorBy='class_label'
+                      linkDirectionalParticles={2}
+                      linkDirectionalParticleSpeed={0.005}
                       linkColor={l => REL_COLORS[l.link_type] || '#999'}
                     />
                   </Box>
