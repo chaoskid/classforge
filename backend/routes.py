@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from database.db import SessionLocal
-from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores, AllocationsSummary
+from database.models import Students, Clubs, Users, Teachers, SurveyResponse, Relationships, Allocations, Affiliations, Unit, CalculatedScores, AllocationsSummary, Feedback
 import pandas as pd
 import math
 import numpy as np
@@ -1165,6 +1165,81 @@ def graph3():
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
+
+
+
+@either_login_required
+@survey_routes.route('/api/student-relationships', methods=['GET'])
+def get_student_relationships():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        if not student_id:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        # Fetch all relationship links for this student
+        rels = db.query(Relationships).filter_by(source=student_id).all()
+        categorized = {}
+
+        for q in ['friends', 'advice', 'disrespect', 'influence', 'more_time', 'feedback']:
+            filtered = [r for r in rels if r.link_type == q]
+            categorized[q] = [{"value": r.target, "label": f"Student {r.target}"} for r in filtered]
+
+        # Fetch student feedback (optional)
+        feedback = db.query(Feedback).filter_by(student_id=student_id).first()
+        student_feedback = feedback.student_feedback if feedback else ""
+
+        return jsonify({
+            "relationships": categorized,
+            "student_feedback": student_feedback
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@either_login_required
+@survey_routes.route('/api/student-relationships', methods=['POST'])
+def update_student_relationships():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        data = request.get_json() or {}
+
+        # 1) Build the “new” set from the incoming payload
+        #    Expecting: { relationships: [ { source_id, target_id, link_type }, … ] }
+        raw = data.get('relationships', [])
+        new_set = set(
+            (r['link_type'], r['target_id'])
+            for r in raw
+            if 'link_type' in r and 'target_id' in r
+        )
+
+        # 2) Load the existing set from the DB
+        existing = db.query(Relationships).filter_by(source=student_id).all()
+        existing_set = set((r.link_type, r.target) for r in existing)
+
+        # 3) If nothing changed, bail out early
+        if new_set == existing_set:
+            return jsonify({"message": "No changes to relationships."}), 200
+
+        # 4) Otherwise delete the old and insert the new
+        db.query(Relationships).filter_by(source=student_id).delete()
+        for link_type, target in new_set:
+            db.add(Relationships(
+                source=student_id,
+                target=target,
+                link_type=link_type
+            ))
+
+        db.commit()
+        return jsonify({"message": "Relationships updated."}), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+
     
 
 @survey_routes.route('/api/reallocate', methods=['GET', 'POST'])
@@ -1248,6 +1323,7 @@ def reallocate():
         # 3) Load all students' scores & relationships and build data object
         #    generate_dataframes returns (unit_id, scores_df, relationships_df)
         _, scores_df, rel_df = generate_dataframes(db, user_id)
+        print('\n****************** Finished generating dataframe ', scores_df)
         rel_df = map_link_types(rel_df)
         scores_df, edges_df, id_map = map_student_ids(scores_df, rel_df)
         data_obj = create_data_object(scores_df, edges_df)
@@ -1311,10 +1387,139 @@ def reallocate():
     except Exception as e:
         db.rollback()
         return jsonify({'error': str(e)}), 500
-
     finally:
         db.close()
 
+
+
+
+
+@either_login_required
+@survey_routes.route('/api/feedback', methods=['POST'])
+def submit_student_feedback():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        data = request.get_json()
+        text = data.get('student_feedback', '')
+        is_happy = data.get('is_happy', None)
+        print("🧠 Feedback received:", text)
+        print("✅ is_happy value:", is_happy)
+        # Insert or update feedback
+        existing = db.query(Feedback).filter_by(student_id=student_id).first()
+        if existing:
+            existing.student_feedback = text
+        else:
+            new = Feedback(student_id=student_id, student_feedback=text)
+            db.add(new)
+
+        # ✅ Update reallocation field if student answered is_happy
+        if is_happy is not None:
+            alloc = db.query(Allocations).filter_by(student_id=student_id).first()
+            if alloc:
+                alloc.reallocation = 1 if is_happy else 0
+
+        db.commit()
+        return jsonify({"message": "Feedback saved successfully"}), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+@either_login_required
+@survey_routes.route('/api/teacher-feedbacks', methods=['GET'])
+def get_teacher_feedbacks():
+    db = SessionLocal()
+    try:
+        student_id = session.get('user_id')
+        feedbacks = db.query(Feedback).filter_by(student_id=student_id).filter(Feedback.teacher_feedback != None).all()
+
+        results = [{
+            "student_id": f.student_id,
+            "teacher_id": f.teacher_id,
+            "teacher_feedback": f.teacher_feedback
+        } for f in feedbacks]
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/all-feedback-submitted', methods=['GET'])
+def get_all_students_with_feedback():
+    db = SessionLocal()
+    try:
+        feedbacks = (
+            db.query(Feedback.student_id, Students.first_name, Students.last_name, Students.email)
+            .join(Students, Feedback.student_id == Students.student_id)
+            .filter(Feedback.student_feedback != None)
+            .all()
+        )
+        result = [{
+            "student_id": sid,
+            "name": f"{fn} {ln}",
+            "email": email
+        } for sid, fn, ln, email in feedbacks]
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/teacher-feedback', methods=['POST'])
+def submit_teacher_feedback():
+    db = SessionLocal()
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        teacher_feedback = data.get('teacher_feedback')
+        teacher_id = session.get('user_id')
+
+        if not student_id or not teacher_feedback:
+            return jsonify({"error": "Missing required fields"}), 400
+
+        feedback = db.query(Feedback).filter_by(student_id=student_id).first()
+        if feedback:
+            feedback.teacher_feedback = teacher_feedback
+            feedback.teacher_id = teacher_id
+        else:
+            new = Feedback(
+                student_id=student_id,
+                teacher_feedback=teacher_feedback,
+                teacher_id=teacher_id
+            )
+            db.add(new)
+
+        db.commit()
+        return jsonify({"message": "Teacher feedback saved"}), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@teacher_login_required
+@survey_routes.route('/api/student-feedback/<int:student_id>', methods=['GET'])
+def get_student_feedback(student_id):
+    db = SessionLocal()
+    try:
+        feedback = db.query(Feedback).filter_by(student_id=student_id).first()
+        if feedback:
+            return jsonify({
+                "student_feedback": feedback.student_feedback
+            }), 200
+        return jsonify({"student_feedback": ""}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
 
 # Test Route - CAN BE REMOVED LATER
 @teacher_login_required
@@ -1361,3 +1566,4 @@ def push_reallocations():
 
     finally:
         db.close()
+

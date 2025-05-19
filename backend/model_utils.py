@@ -35,6 +35,7 @@ def generate_dataframes(db, user_id):
     print("\n------------ Scores DataFrame shape: \n", scores_df.shape)
     print("\n------------ Relationships DataFrame columns: \n", rel_df.columns)
     print("\n------------ Relationships DataFrame shape: \n", rel_df.shape)
+    print("\n------------ Finished generating datafrane")
     return unit_id,scores_df, rel_df
 
 def map_link_types(rel_df):
@@ -46,9 +47,11 @@ def map_link_types(rel_df):
     'advice': 4,
     'disrespect': 5
     }
-    
+    print("\n------------ Starting mapping link types")
+    print(rel_df['link_type'].unique())
     rel_df['edge_type'] = rel_df['link_type'].map(edge_types).astype(np.int64)
 
+    print("\n------------ Finished mapping link types")
     return rel_df
 
 def map_student_ids(student_df,edges_df):

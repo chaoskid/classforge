@@ -95,7 +95,7 @@ export default function Reallocate() {
                     ))}
                   </List>
                 </Collapse>
-                {!showAll && students.length > 5 && (
+                {!showAll && students.length > 0 && (
                   <List spacing={3}>
                     {students.slice(0, 5).map(student => (
                       <ListItem key={student.student_id}>
