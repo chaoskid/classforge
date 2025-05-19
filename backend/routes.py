@@ -1181,7 +1181,7 @@ def get_student_relationships():
         rels = db.query(Relationships).filter_by(source=student_id).all()
         categorized = {}
 
-        for q in ['friends', 'advice', 'disrespect', 'popular', 'more_time', 'feedback']:
+        for q in ['friends', 'advice', 'disrespect', 'influence', 'more_time', 'feedback']:
             filtered = [r for r in rels if r.link_type == q]
             categorized[q] = [{"value": r.target, "label": f"Student {r.target}"} for r in filtered]
 
@@ -1323,6 +1323,7 @@ def reallocate():
         # 3) Load all students' scores & relationships and build data object
         #    generate_dataframes returns (unit_id, scores_df, relationships_df)
         _, scores_df, rel_df = generate_dataframes(db, user_id)
+        print('\n****************** Finished generating dataframe ', scores_df)
         rel_df = map_link_types(rel_df)
         scores_df, edges_df, id_map = map_student_ids(scores_df, rel_df)
         data_obj = create_data_object(scores_df, edges_df)

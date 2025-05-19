@@ -14,7 +14,7 @@ const networkQuestions = [
   { key: 'friends',    label: 'Who are your closest friends?' },
   { key: 'advice',     label: 'Which other students do you go to for advice about schoolwork?' },
   { key: 'disrespect', label: 'Which students are disrespectful towards you?' },
-  { key: 'popular',    label: 'Who are the most popular and influential students?' },
+  { key: 'influence',    label: 'Who are the most popular and influential students?' },
   { key: 'more_time',  label: 'Who would you like to spend MORE time with?' },
   { key: 'feedback',   label: 'Which students provide you with meaningful feedback about your learning?' }
 ];

@@ -68,12 +68,14 @@ export default function TeacherFeedbackPage() {
 
   return (
     <>
-      <Navbar />
-      <Box bg="gray.100" minH="100vh" py={10}>
-        <Container maxW="3xl" bg="white" p={8} borderRadius="lg" boxShadow="lg">
-          <Button colorScheme="blue" onClick={() => navigate(-1)}>
-                          Back
-                        </Button>
+      <Navbar id="navbar" tabIndex={-1} />
+      <Box bg="gray.100" minH="100vh" py={10} pt={10}>
+        <Container maxW="7xl" minH="90vh" bg="white" borderRadius="lg" boxShadow="lg" p={10}>
+        <Button colorScheme="blue" onClick={() => navigate(-1)}>
+                Back
+              </Button>
+        
+      <Box minH="3vh"></Box>
           <Heading size="lg" mb={6}>Submit Feedback to Students</Heading>
           <VStack spacing={6}>
             <Select

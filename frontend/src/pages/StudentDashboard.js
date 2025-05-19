@@ -134,9 +134,6 @@ const StudentDashboard = () => {
           <Button colorScheme="teal" onClick={() => navigate('/survey')} mr={4}>
             Go to Survey
           </Button>
-          <Button variant="outline" onClick={() => navigate('/survey')} mr={4}>
-          Retake Survey
-          </Button>
           <Button variant="outline" onClick={() => navigate('/feedback')} mr={4}>
              Give Feedback
           </Button>
