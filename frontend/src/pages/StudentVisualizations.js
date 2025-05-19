@@ -20,10 +20,13 @@ import StudentRadarChart from '../components/StudentRadarChart';
 import AcademicScoreChart from '../components/AcademicScoreChart';
 import ClubParticipationDonut from '../components/ClubParticipationDonut';
 import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 export default function StudentVisualization() {
   const [students, setStudents] = useState([]);
-  const [selectedStudent, setSelectedStudent] = useState('');
+  const location = useLocation();
+  const initial = location.state?.selectedStudent || '';
+  const [selectedStudent, setSelectedStudent] = useState(initial);
   const [studentDetails, setStudentDetails] = useState({});
   const [retention, setRetention] = useState(0);
   const [allClubs, setAllClubs] = useState([]);

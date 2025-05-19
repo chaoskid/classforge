@@ -33,7 +33,7 @@ def predict_links(x, model, link_predictor, source, targets, id_map):
             real_tgt   = rev_map[tgt]
             pred_prob  = probs[pred_idx].item()
             
-            if pred_prob >= 0.75 and pred_type != "no_link":
+            if pred_prob >= 0.95 and pred_type != "no_link":
                 results.append({
                     'source': real_source,
                     'target': real_tgt,
