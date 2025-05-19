@@ -13,6 +13,11 @@ import StudentVisualization from './pages/StudentVisualizations';
 import Login from './pages/login'; // capital "L" for consistency with file
 import AllocationSettings from './pages/AllocationSettings';
 import ManualOverride from './pages/ManualOverride'; 
+import StudentFeedback from './pages/StudentFeedback';
+import TeacherFeedbackPage from './pages/TeacherFeedbackPage'; 
+import Admin from './pages/admin'; // capital "A" for consistency with file
+import Reallocate from './pages/Reallocation';
+
 
 function App() {
   return (
@@ -32,6 +37,10 @@ function App() {
             <Route path="/student-visualizations" element={<StudentVisualization />} />
             <Route path="/survey" element={<SnaSurvey />} />
             <Route path="/manual-override" element={<ManualOverride />} />
+            <Route path="/feedback" element={<StudentFeedback />} />
+            <Route path="/teacher-feedback" element={<TeacherFeedbackPage />} />
+            <Route path="/reallocations" element={<Reallocate />} />
+            <Route path="/admin" element={<Admin />} />
           </Route>
 
           {/* Fallback */}

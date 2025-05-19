@@ -52,6 +52,7 @@ const ManualOverride = () => {
 
   // Fetch students and classes on mount
   useEffect(() => {
+    setLoading(true);
     axios
       .get('/api/students-and-classes')
       .then(res => {
@@ -61,7 +62,11 @@ const ManualOverride = () => {
       .catch(err => {
         console.error(err);
         setError('Failed to load students or classes.');
-      });
+      })
+      .finally(() => {
+        setLoading(false);
+      }
+      );
   }, []);
 
   // Build network graph data from result.existing_links
@@ -108,7 +113,7 @@ const ManualOverride = () => {
   // Auto-fit existing graph on update
   useEffect(() => {
     if (existingRef.current && existingGraphData.nodes.length) {
-      existingRef.current.zoomToFit(100, 150);
+      existingRef.current.zoomToFit(100, 50);
     }
   }, [existingGraphData]);
 
@@ -157,7 +162,7 @@ const ManualOverride = () => {
   // Auto-fit predicted graph on update
   useEffect(() => {
     if (predictedRef.current && predictedGraphData.nodes.length) {
-      predictedRef.current.zoomToFit(100, 150);
+      predictedRef.current.zoomToFit(100, 50);
     }
   }, [predictedGraphData]);
 
@@ -181,6 +186,19 @@ const ManualOverride = () => {
       })
       .finally(() => setLoading(false));
   };
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
+          <Spinner size="xl" />
+        </Box>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
@@ -322,7 +340,7 @@ const ManualOverride = () => {
                     linkColor={link => REL_COLORS[link.type] || '#999'}
                     linkCurvature={link => link.curvature}
                     onEngineStop={() => {
-                      existingRef.current.zoomToFit(150, 100);
+                      existingRef.current.zoomToFit(100, 50);
                       existingRef.current.pauseAnimation();
                     }}
                   />
@@ -347,7 +365,7 @@ const ManualOverride = () => {
                     linkColor={link => REL_COLORS[link.type] || '#999'}
                     linkCurvature={link => link.curvature}
                     onEngineStop={() => {
-                      predictedRef.current.zoomToFit(150, 100);
+                      predictedRef.current.zoomToFit(100, 50);
                       predictedRef.current.pauseAnimation();
                     }}
                   />

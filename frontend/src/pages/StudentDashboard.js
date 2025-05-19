@@ -9,7 +9,9 @@ import { Box,
   Tbody,
   Tr,
   Td,
-  SimpleGrid } from '@chakra-ui/react';
+  SimpleGrid,
+  Spinner
+ } from '@chakra-ui/react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import axios from '../pages/axiosConfig';
@@ -30,6 +32,7 @@ const StudentDashboard = () => {
   const [retention, setRetention] = useState(0);
   const [allClubs, setAllClubs] = useState([]);
   const [popularClubs, setPopularClubs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
@@ -40,6 +43,7 @@ const StudentDashboard = () => {
         }
       }).catch(err => console.error(err));
       
+      setLoading(true);
       axios.get('/api/student-info', { withCredentials: true })
     .then(res => {
       if (res.status === 200) {
@@ -68,7 +72,10 @@ const StudentDashboard = () => {
   
         setPopularClubs(sorted);
       })
-      .catch(err => console.error(err));
+      .catch(err => console.error(err))
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
   
   
@@ -104,7 +111,19 @@ const StudentDashboard = () => {
     }
   }, [studentDetails]);
   
-
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <Box bg="gray.100" minH="100vh" py={10} textAlign="center">
+          <Heading mb={4}>Loading...</Heading>
+          <Text mb={4}>Please wait while we fetch the data. Our database is currently hosted in a slow and free tier system. Hang on tight!</Text>
+          <Spinner size="xl" />
+        </Box>
+        <Footer />
+      </>
+    );
+  }
   return (
     <>
       <Navbar />
@@ -115,21 +134,28 @@ const StudentDashboard = () => {
           <Button colorScheme="teal" onClick={() => navigate('/survey')} mr={4}>
             Go to Survey
           </Button>
-          <Button variant="outline" onClick={() => navigate('/survey')}>
-          Retake Survey
-          </Button>
-          <Button variant="Outline" onClick={() => alert("Feedback system coming soon!")} mr={4}>
-          Give Feedback
+          <Button variant="outline" onClick={() => navigate('/feedback')} mr={4}>
+             Give Feedback
           </Button>
           <Button variant="outline" onClick={handleLogout}>
             Logout
           </Button>
           {Object.keys(responses).length > 0 && (
-  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={10}>
-      {/* 📋 Survey Responses Box */}
-      <Box mb={6} p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
-  <Heading size="md" mb={4}>Friendship Retention</Heading>
+  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={10} alignItems="stretch">
+      
+{/* 📋 Left Column */}
+<Box mb={6} p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
+  {/* 👤 Student Info */}
+  <Box mb={4} >
+    <Heading size="md" mb={2}>Student Information</Heading>
+    <Text><strong>Name:</strong> {studentDetails?.student?.name}</Text>
+    <Text><strong>Email:</strong> {studentDetails?.student?.email}</Text>
+    <Text><strong>Class:</strong> {studentDetails?.student?.class_id || 'N/A'}</Text>
+    <Text><strong>Clubs:</strong> {(studentDetails?.clubs || []).join(', ') || 'None'}</Text>
+  </Box>
 
+  {/* 🧭 Friendship Retention */}
+  <Heading size="md" mb={4}>Friendship Retention</Heading>
   <Box w="200px" mx="auto" mt={4} transform="rotate(-90deg)">
     <CircularProgressbarWithChildren
       value={retention * 100}
@@ -139,65 +165,50 @@ const StudentDashboard = () => {
         pathColor: '#0a2f5c',
         trailColor: '#f4e3c1',
         strokeLinecap: 'butt',
-        rotation: 1, // Half-circle
+        rotation: 1,
       })}
-      circleRatio={0.5} // Half circle
+      circleRatio={0.5}
     >
       <div style={{ transform: 'rotate(90deg)' }}>
         <Text fontSize="2xl" fontWeight="bold">{Math.round(retention * 100)}%</Text>
       </div>
     </CircularProgressbarWithChildren>
   </Box>
-  
+
+  {/* 🌱 Wellbeing Radar */}
   {studentDetails?.student?.scores && (
-  <Box mt={10}>
-  <Heading size="md" mb={4}>Personal Wellbeing Profile</Heading>
-  <Box w="100%" maxW="500px" mx="auto" h="400px">
-    <StudentRadarChart scores={studentDetails.student.scores} />
-  </Box>
-  {studentDetails?.clubs && (
-  <Box mt={10}>
-    <Heading size="md" mb={4}>Club Participation</Heading>
-    <ClubParticipationDonut 
-  studentClubs={studentDetails.clubs} 
-  popularClubs={popularClubs}
-  allClubs={allClubs}
-/>
-  </Box>
-)}
-
-</Box>
-)}
-
-
-
+    <>
+      <Heading size="md" mt={10} mb={4}>Personal Wellbeing Profile</Heading>
+      <Box w="100%" maxW="500px" mx="auto" h="400px">
+        <StudentRadarChart scores={studentDetails.student.scores} />
+      </Box>
+    </>
+  )}
 </Box>
 
-    <Box p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
-      <Heading size="md" mb={4}>Student Info</Heading>
-      <Text><b>Name:</b> {studentDetails?.student?.name}</Text>
-      <Text><b>Email:</b> {studentDetails?.student?.email}</Text>
-      <Text><b>Subjects:</b> {studentDetails?.units?.join(', ') || 'None'}</Text>
-      <Text><b>Clubs:</b> {studentDetails?.clubs?.join(', ') || 'None'}</Text>
-      {studentDetails?.relationships?.length > 0 && (
-        <Box mt={6}>
-          <Heading size="md" mb={4}>Relationship Network</Heading>
-          <StudentNetworkGraph
-            name={studentDetails.student?.name || "You"}
-            relationships={studentDetails.relationships}
-          />
-        </Box>
-       )}
-       {studentDetails?.student?.academic_score && (
-          <Box mt={10}>
-             <Heading size="md" mb={4}>Academic Score vs Class Average</Heading>
-             <AcademicScoreChart
-                  yourScore={studentDetails.student.academic_score}
-                  classAvg={studentDetails.student.class_average_score}
-           />
-       </Box>
-      )}
+
+{/* 📊 Right Column */}
+<Box p={4} border="1px solid #ccc" borderRadius="lg" bg="gray.50">
+  {studentDetails?.relationships?.length > 0 && (
+    <Box mt={6}>
+      <Heading size="md" mb={4}>Relationship Network</Heading>
+      <StudentNetworkGraph
+        name={studentDetails.student?.name || "You"}
+        relationships={studentDetails.relationships}
+      />
     </Box>
+  )}
+  {studentDetails?.student?.academic_score && (
+    <Box mt={10}>
+      <Heading size="md" mb={4}>Academic Score vs Class Average</Heading>
+      <AcademicScoreChart
+        yourScore={studentDetails.student.academic_score}
+        classAvg={studentDetails.student.class_average_score}
+      />
+    </Box>
+  )}
+</Box>
+
   </SimpleGrid>
 )}
 
