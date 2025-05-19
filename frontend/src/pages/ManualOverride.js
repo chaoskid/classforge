@@ -110,13 +110,6 @@ const ManualOverride = () => {
     setExistingGraphData({ nodes, links });
   }, [result, students]);
 
-  // Auto-fit existing graph on update
-  useEffect(() => {
-    if (existingRef.current && existingGraphData.nodes.length) {
-      existingRef.current.zoomToFit(100, 50);
-    }
-  }, [existingGraphData]);
-
   // Build network graph data from result.predicted_links
   useEffect(() => {
     if (!result?.predicted_links) return;
@@ -158,13 +151,6 @@ const ManualOverride = () => {
 
     setPredictedGraphData({ nodes, links });
   }, [result, students]);
-
-  // Auto-fit predicted graph on update
-  useEffect(() => {
-    if (predictedRef.current && predictedGraphData.nodes.length) {
-      predictedRef.current.zoomToFit(100, 50);
-    }
-  }, [predictedGraphData]);
 
   const handleOverride = () => {
     if (!studentId || !classId) {
