@@ -108,7 +108,7 @@ const ManualOverride = () => {
   // Auto-fit existing graph on update
   useEffect(() => {
     if (existingRef.current && existingGraphData.nodes.length) {
-      existingRef.current.zoomToFit(400, 50);
+      existingRef.current.zoomToFit(100, 150);
     }
   }, [existingGraphData]);
 
@@ -157,7 +157,7 @@ const ManualOverride = () => {
   // Auto-fit predicted graph on update
   useEffect(() => {
     if (predictedRef.current && predictedGraphData.nodes.length) {
-      predictedRef.current.zoomToFit(400, 50);
+      predictedRef.current.zoomToFit(100, 150);
     }
   }, [predictedGraphData]);
 
@@ -302,96 +302,78 @@ const ManualOverride = () => {
 
               {/* New Network Graph Section */}
               <Divider mb={4} />
-              <Flex justify='center'>
-              <SimpleGrid columns={2} spacing={8} mb={6}>
-              <Box>
-              <Heading size="md" mb={2}>Existing Relationships</Heading>
-              
-              <Box h='500px' border="1px solid" borderColor="gray.200" mb={6} position="relative" overflow="hidden" style={{ pointerEvents: 'auto' }}>
-                <ForceGraph2D
-                  ref={existingRef}
-                  enableZoomPanInteraction={true}
-                  enableNodeDrag={true}
-                  graphData={existingGraphData}
-                  height={500}
-                  nodeLabel="name"
-                  //nodeAutoColorBy="id"
-                  nodeRelSize={8}
-                  linkDirectionalParticles={2}
-                  linkDirectionalParticleSpeed={0.005}
-                  linkWidth={link => link.type === 'disrespect' ? 2 : 1}
-                  linkColor={link => REL_COLORS[link.type] || '#999'}
-                  linkCurvature={link => link.curvature}
-                />
-              </Box>
+              <Flex justify="center" gap={8} wrap="wrap">
+                {/* Existing Relationships */}
+                <Box w={{ base: '100%', md: '45%' }} h="400px" position="relative" overflow="hidden">
+                  <Heading size="sm" mb={2}>Existing Relationships</Heading>
+                  <ForceGraph2D
+                    ref={existingRef}
+                    enableZoomPanInteraction={true}
+                    enableNodeDrag={true}
+                    width={450}
+                    height={400}
+                    graphData={existingGraphData}
+                    nodeLabel="name"
+                    nodeRelSize={5}
+                    linkDirectionalParticles={2}
+                    linkDirectionalParticleSpeed={0.005}
+                    linkLabel={link => `${link.type}`}
+                    linkWidth={link => (link.type === 'disrespect' ? 2 : 1)}
+                    linkColor={link => REL_COLORS[link.type] || '#999'}
+                    linkCurvature={link => link.curvature}
+                    onEngineStop={() => {
+                      existingRef.current.zoomToFit(150, 100);
+                      existingRef.current.pauseAnimation();
+                    }}
+                  />
+                </Box>
 
-              {/* Legend */}
-                            <Text fontWeight='bold' mt={2}>Relationships:</Text>
-                            <HStack spacing={4} wrap="wrap" align="center" mb={4}>
-                              {Object.entries(REL_COLORS).map(([type, color]) => (
-                                <HStack key={type} spacing={2} align="center">
-                                  <Box
-                                    w="24px"
-                                    h="6px"
-                                    bg={color}
-                                    borderRadius="full"
-                                  />
-                                  <Text fontSize="sm">
-                                    {type
-                                      .replace('_', ' ')
-                                      .replace(/\b\w/g, l => l.toUpperCase())
-                                    }
-                                  </Text>
-                                </HStack>
-                              ))}
-                            </HStack>
-              </Box>
-              {/* New Network Graph Section */}
-              <Box>
-              <Heading size="md" mb={2}>Predicted Relationships</Heading>
-              <Box h='500px' border="1px solid" borderColor="gray.200" mb={6} position="relative" overflow="hidden" style={{ pointerEvents: 'auto' }}>
-                <ForceGraph2D
-                  enableZoomPanInteraction={true}
-                  enableNodeDrag={true}
-                  ref={predictedRef}
-                  graphData={predictedGraphData}
-                  height={500}
-                  nodeLabel="name"
-                  //nodeAutoColorBy="id"
-                  nodeRelSize={8}
-                  linkDirectionalParticles={2}
-                  linkDirectionalParticleSpeed={0.005}
-                  linkLabel={link => `Probability: ${link.probability}`}
-                  linkWidth={link => link.type === 'disrespect' ? 2 : 1}
-                  linkColor={link => REL_COLORS[link.type] || '#999'}
-                  linkCurvature={link => link.curvature}
-                />
-              </Box>
-              
-
-              {/* Legend */}
-                            <Text fontWeight='bold' mt={2}>Relationships:</Text>
-                            <HStack spacing={4} wrap="wrap" align="center" mb={4}>
-                              {Object.entries(REL_COLORS).map(([type, color]) => (
-                                <HStack key={type} spacing={2} align="center">
-                                  <Box
-                                    w="24px"
-                                    h="6px"
-                                    bg={color}
-                                    borderRadius="full"
-                                  />
-                                  <Text fontSize="sm">
-                                    {type
-                                      .replace('_', ' ')
-                                      .replace(/\b\w/g, l => l.toUpperCase())
-                                    }
-                                  </Text>
-                                </HStack>
-                              ))}
-                            </HStack>
-              </Box>
-              </SimpleGrid>
+                {/* Predicted Relationships */}
+                <Box w={{ base: '100%', md: '45%' }} h="400px" position="relative" overflow="hidden">
+                  <Heading size="sm" mb={2}>Predicted Relationships</Heading>
+                  <ForceGraph2D
+                    ref={predictedRef}
+                    enableZoomPanInteraction={true}
+                    enableNodeDrag={true}
+                    width={450}
+                    height={400}
+                    graphData={predictedGraphData}
+                    nodeLabel="name"
+                    nodeRelSize={5}
+                    linkDirectionalParticles={2}
+                    linkDirectionalParticleSpeed={0.005}
+                    linkLabel={link => `${link.type}(${link.probability*100}%)`}
+                    linkWidth={link => (link.type === 'disrespect' ? 2 : 1)}
+                    linkColor={link => REL_COLORS[link.type] || '#999'}
+                    linkCurvature={link => link.curvature}
+                    onEngineStop={() => {
+                      predictedRef.current.zoomToFit(150, 100);
+                      predictedRef.current.pauseAnimation();
+                    }}
+                  />
+                  
+                </Box>
               </Flex>
+              {/* Legend */}
+              <Text fontWeight='bold' mt={2}>Relationships:</Text>
+                                <HStack spacing={4} wrap="wrap" align="center" mb={4}>
+                                  {Object.entries(REL_COLORS).map(([type, color]) => (
+                                    <HStack key={type} spacing={2} align="center">
+                                      <Box
+                                        w="24px"
+                                        h="6px"
+                                        bg={color}
+                                        borderRadius="full"
+                                      />
+                                      <Text fontSize="sm">
+                                        {type
+                                          .replace('_', ' ')
+                                          .replace(/\b\w/g, l => l.toUpperCase())
+                                        }
+                                      </Text>
+                                    </HStack>
+                                  ))}
+                                </HStack>
             </Box>
           )}
         </Container>
